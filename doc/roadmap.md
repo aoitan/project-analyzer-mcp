@@ -4,14 +4,14 @@
 
 ## フェーズ1: コア機能の強化と安定化 (短期)
 
-### 1.1. `SwiftParser` の精度向上
+### 1.1. `SwiftParser` の精度向上 (一部解決済み)
 
-- `getLineNumber` メソッドの正確性を向上させ、`SourceKitten` のオフセット情報から正確な行番号を導出する。
+- `getLineNumber` メソッドの正確性を向上させ、`SourceKitten` のオフセット情報から正確な行番号を導出する。（解決済み）
 - `getFunctionContent` メソッドで、関数本体だけでなく、関数全体のコードブロック（シグネチャを含む）を正確に抽出できるようにする。
 
-### 1.2. `analyzeProject` の実用化
+### 1.2. `analyzeProject` の実用化 (解決済み)
 
-- `AnalysisService.getSwiftFiles` のダミー実装を、指定されたプロジェクトパス内のすべての `.swift` ファイルを再帰的に探索する実際のロジックに置き換える。
+- `AnalysisService.getSwiftFiles` のダミー実装を、指定されたプロジェクトパス内のすべての `.swift` ファイルを再帰的に探索する実際のロジックに置き換える。（解決済み）
 
 ### 1.3. エラーハンドリングとロギングの強化
 
