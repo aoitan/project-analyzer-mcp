@@ -31,7 +31,9 @@ describe('MCP Server Tools', () => {
 
   it('analyze_project callback should return success message', async () => {
     const tool = toolConfigurations.find((t) => t.name === 'analyze_project');
-    const result = await tool?.callback({ projectPath: '/test/project' });
+    const result = await tool?.callback({
+      projectPath: '/Users/ma-yabushita/00_work/study/ai/toy',
+    });
     expect(result).toEqual({ status: 'success', message: 'Project analysis completed.' });
   });
 
@@ -39,7 +41,7 @@ describe('MCP Server Tools', () => {
     const tool = toolConfigurations.find((t) => t.name === 'get_chunk');
     // First, analyze a project to populate chunks
     const analyzeTool = toolConfigurations.find((t) => t.name === 'analyze_project');
-    await analyzeTool?.callback({ projectPath: '/test/project' });
+    await analyzeTool?.callback({ projectPath: '/Users/ma-yabushita/00_work/study/ai/toy' });
 
     const result = await tool?.callback({ chunkId: 'func dummyFunction1(param:) -> Int' });
     expect(result).toEqual({ status: 'success', chunk: 'return 1' });

@@ -1,5 +1,7 @@
 import { SwiftParser } from './parser';
 import * as fs from 'fs/promises';
+import { glob } from 'glob';
+import * as path from 'path';
 
 export class AnalysisService {
   private swiftParser: SwiftParser;
@@ -48,10 +50,8 @@ export class AnalysisService {
   }
 
   private async getSwiftFiles(projectPath: string): Promise<string[]> {
-    // This is a dummy implementation. In a real scenario, this would recursively
-    // find all .swift files within the projectPath.
-    // For now, we'll just return the dummy.swift file.
-    return ['/Users/ma-yabushita/00_work/study/ai/toy/src/__tests__/dummy.swift'];
+    const swiftFiles = await glob('**/*.swift', { cwd: projectPath, absolute: true });
+    return swiftFiles;
   }
 
   private async saveChunk(chunk: CodeChunk): Promise<void> {
