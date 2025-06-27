@@ -38,7 +38,7 @@ export class AnalysisService {
     console.log(`AnalysisService: Getting chunk: ${chunkId}`);
     // Try to get from cache first
     for (const projectChunks of this.parsedProjects.values()) {
-      const cachedChunk = projectChunks.find(chunk => chunk.id === chunkId);
+      const cachedChunk = projectChunks.find((chunk) => chunk.id === chunkId);
       if (cachedChunk) {
         return { content: cachedChunk.content };
       }
@@ -79,12 +79,17 @@ export class AnalysisService {
   async listFunctionsInFile(filePath: string): Promise<{ signature: string }[]> {
     console.log(`AnalysisService: Listing functions in file: ${filePath}`);
     const codeChunks = await this.swiftParser.parseFile(filePath);
-    return codeChunks.filter(chunk => chunk.type.includes('function')).map(chunk => ({
-      signature: chunk.signature
-    }));
+    return codeChunks
+      .filter((chunk) => chunk.type.includes('function'))
+      .map((chunk) => ({
+        signature: chunk.signature,
+      }));
   }
 
-  async getFunctionChunk(filePath: string, functionSignature: string): Promise<{ content: string } | null> {
+  async getFunctionChunk(
+    filePath: string,
+    functionSignature: string,
+  ): Promise<{ content: string } | null> {
     console.log(`AnalysisService: Getting function chunk for ${functionSignature} in ${filePath}`);
     const content = await this.swiftParser.getFunctionContent(filePath, functionSignature);
     if (content) {
@@ -93,5 +98,4 @@ export class AnalysisService {
       return null;
     }
   }
-
 }

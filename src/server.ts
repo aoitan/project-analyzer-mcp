@@ -6,16 +6,16 @@ const analysisService = new AnalysisService();
 // Define tool configurations
 export const toolConfigurations = [
   {
-    name: "analyze_project",
+    name: 'analyze_project',
     config: {
-      title: "Analyze Project",
-      description: "Analyzes a project and extracts code chunks.",
+      title: 'Analyze Project',
+      description: 'Analyzes a project and extracts code chunks.',
       inputSchema: {
-        type: "object",
+        type: 'object',
         properties: {
-          projectPath: { type: "string", description: "The path to the project to analyze." },
+          projectPath: { type: 'string', description: 'The path to the project to analyze.' },
         },
-        required: ["projectPath"],
+        required: ['projectPath'],
       },
     },
     callback: async (input: { projectPath: string }) => {
@@ -24,16 +24,16 @@ export const toolConfigurations = [
     },
   },
   {
-    name: "get_chunk",
+    name: 'get_chunk',
     config: {
-      title: "Get Code Chunk",
-      description: "Retrieves a specific code chunk.",
+      title: 'Get Code Chunk',
+      description: 'Retrieves a specific code chunk.',
       inputSchema: {
-        type: "object",
+        type: 'object',
         properties: {
-          chunkId: { type: "string", description: "The ID of the code chunk to retrieve." },
+          chunkId: { type: 'string', description: 'The ID of the code chunk to retrieve.' },
         },
-        required: ["chunkId"],
+        required: ['chunkId'],
       },
     },
     callback: async (input: { chunkId: string }) => {
@@ -46,16 +46,16 @@ export const toolConfigurations = [
     },
   },
   {
-    name: "list_functions_in_file",
+    name: 'list_functions_in_file',
     config: {
-      title: "List Functions in File",
-      description: "Returns a list of functions found in the specified source file.",
+      title: 'List Functions in File',
+      description: 'Returns a list of functions found in the specified source file.',
       inputSchema: {
-        type: "object",
+        type: 'object',
         properties: {
-          filePath: { type: "string", description: "The absolute path to the source file." },
+          filePath: { type: 'string', description: 'The absolute path to the source file.' },
         },
-        required: ["filePath"],
+        required: ['filePath'],
       },
     },
     callback: async (input: { filePath: string }) => {
@@ -63,17 +63,20 @@ export const toolConfigurations = [
     },
   },
   {
-    name: "get_function_chunk",
+    name: 'get_function_chunk',
     config: {
-      title: "Get Function Code Chunk",
-      description: "Returns the code chunk for a specific function in a source file.",
+      title: 'Get Function Code Chunk',
+      description: 'Returns the code chunk for a specific function in a source file.',
       inputSchema: {
-        type: "object",
+        type: 'object',
         properties: {
-          filePath: { type: "string", description: "The absolute path to the source file." },
-          functionSignature: { type: "string", description: "The signature of the function to retrieve." },
+          filePath: { type: 'string', description: 'The absolute path to the source file.' },
+          functionSignature: {
+            type: 'string',
+            description: 'The signature of the function to retrieve.',
+          },
         },
-        required: ["filePath", "functionSignature"],
+        required: ['filePath', 'functionSignature'],
       },
     },
     callback: async (input: { filePath: string; functionSignature: string }) => {
@@ -84,11 +87,11 @@ export const toolConfigurations = [
 
 export function createMcpServer() {
   const server = new McpServer({
-    name: "mcp-code-analysis-server",
-    version: "1.0.0",
+    name: 'mcp-code-analysis-server',
+    version: '1.0.0',
   });
 
-  toolConfigurations.forEach(tool => {
+  toolConfigurations.forEach((tool) => {
     server.registerTool(tool.name, tool.config, tool.callback);
   });
 

@@ -7,9 +7,9 @@ jest.mock('child_process', () => ({
   ...jest.requireActual('child_process'),
   exec: jest.fn((command, callback) => {
     const mockOutput: SourceKittenStructure = {
-        key: 'key.structure',
-        kind: 'source.lang.swift.syntaxtype.comment',
-        substructure: [
+      key: 'key.structure',
+      kind: 'source.lang.swift.syntaxtype.comment',
+      substructure: [
         {
           kind: 'source.lang.swift.decl.class',
           name: 'MyClass',

@@ -27,7 +27,7 @@ Claude CodeでMCPサーバーを利用するには、`<PROJECT_ROOT>/.mcp.json` 
   "mcpServers": {
     "mcp-code-analysis-server": {
       "command": "npm",
-      "args": [ "start" ],
+      "args": ["start"],
       "env": {}
     }
   }

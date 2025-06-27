@@ -27,7 +27,7 @@ export class SwiftParser {
       const rawFunctions: any[] = [];
       const collectRawFunctions = (items: any[]) => {
         for (const item of items) {
-          console.log("Checking item kind:", item['key.kind']);
+          console.log('Checking item kind:', item['key.kind']);
           if (item['key.kind'] && item['key.kind'].startsWith('source.lang.swift.decl.function')) {
             rawFunctions.push(item);
           }
@@ -38,33 +38,39 @@ export class SwiftParser {
       };
       collectRawFunctions(sourceKittenOutput['key.substructure'] || []);
 
-      const functions: CodeChunk[] = await Promise.all(rawFunctions.map(async (item) => {
-        const startLine = item['key.offset'] ? await this.getLineNumber(filePath, item['key.offset']) : 0;
-        const endLine = item['key.offset'] && item['key.length'] ? await this.getLineNumber(filePath, item['key.offset'] + item['key.length']) : 0;
+      const functions: CodeChunk[] = await Promise.all(
+        rawFunctions.map(async (item) => {
+          const startLine = item['key.offset']
+            ? await this.getLineNumber(filePath, item['key.offset'])
+            : 0;
+          const endLine =
+            item['key.offset'] && item['key.length']
+              ? await this.getLineNumber(filePath, item['key.offset'] + item['key.length'])
+              : 0;
 
-        let signature = item['key.name'] || '';
-        if (item['key.typename']) {
-          signature = `func ${signature} -> ${item['key.typename']}`;
-        } else {
-          signature = `func ${signature}`;
-        }
+          let signature = item['key.name'] || '';
+          if (item['key.typename']) {
+            signature = `func ${signature} -> ${item['key.typename']}`;
+          } else {
+            signature = `func ${signature}`;
+          }
 
-        return parsedData.map((item: any) => {
-      const chunk = {
-        name: item["key.name"],
-        type: item["key.kind"],
-        signature: signature,
-        id: signature,
-        content: '',
-        startLine: startLine,
-        endLine: endLine,
-        bodyOffset: item['key.bodyoffset'] || 0,
-        bodyLength: item['key.bodylength'] || 0,
-      };
-      return chunk;
-    });
-  }
-
+          return parsedData.map((item: any) => {
+            const chunk = {
+              name: item['key.name'],
+              type: item['key.kind'],
+              signature: signature,
+              id: signature,
+              content: '',
+              startLine: startLine,
+              endLine: endLine,
+              bodyOffset: item['key.bodyoffset'] || 0,
+              bodyLength: item['key.bodylength'] || 0,
+            };
+            return chunk;
+          });
+        }),
+      );
     } catch (error) {
       console.error(`Error parsing Swift file with SourceKitten: ${error}`);
       return [];
@@ -87,16 +93,8 @@ export class SwiftParser {
     try {
       const fileContent = await fs.readFile(filePath, 'utf-8');
       const functions = await this.parseFile(filePath);
-      const targetFunction = functions.find(func => func.signature === functionSignature);
-    return targetFunction ? targetFunction.content : null;
-  }
-}
-
-      if (targetFunction && targetFunction.bodyOffset !== undefined && targetFunction.bodyLength !== undefined) {
-        const bodyContent = fileContent.substring(targetFunction.bodyOffset, targetFunction.bodyOffset + targetFunction.bodyLength).trim();
-        return bodyContent;
-      }
-      return null;
+      const targetFunction = functions.find((func) => func.signature === functionSignature);
+      return targetFunction ? targetFunction.content : null;
     } catch (error) {
       console.error(`Error getting function content: ${error}`);
       return null;
