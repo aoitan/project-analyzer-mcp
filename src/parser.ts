@@ -75,13 +75,9 @@ export class SwiftParser {
 
   private async getLineNumber(filePath: string, offset: number): Promise<number> {
     const fileContent = await fs.readFile(filePath, 'utf-8');
-    let lineNumber = 1;
-    for (let i = 0; i < offset; i++) {
-      if (fileContent[i] === '\n') {
-        lineNumber++;
-      }
-    }
-    return lineNumber;
+    const textUntilOffset = fileContent.slice(0, offset);
+    const newlines = textUntilOffset.match(/\r\n|\n|\r/g);
+    return newlines ? newlines.length + 1 : 1;
   }
 
   async getFunctionContent(filePath: string, functionSignature: string): Promise<string | null> {
