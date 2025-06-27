@@ -1,109 +1,105 @@
-// src/parser.ts
-import * as fs from 'fs';
-import * as path from 'path';
 import { exec } from 'child_process';
 import { promisify } from 'util';
-import { CodeChunk, SimpleDependencyGraph, SourceKittenStructure } from './types';
+import * as fs from 'fs/promises';
 
 const execPromise = promisify(exec);
 
-/**
- * Executes the SourceKitten command on a given Swift file.
- * @param filePath The absolute path to the Swift file.
- * @returns The parsed JSON output from SourceKitten.
- */
-export async function runSourceKitten(filePath: string): Promise<SourceKittenStructure> {
-    const SDK_PATH = process.env.SWIFT_SDK_PATH || `$(xcrun --show-sdk-path --sdk macosx)`;
-    const TARGET = process.env.SWIFT_TARGET || 'x86_64-apple-macosx14.0';
-    const command = `sourcekitten structure --file ${filePath} -- -sdk ${SDK_PATH} -target ${TARGET}`;
+interface CodeChunk {
+  name: string;
+  type: string;
+  signature: string; // Full function signature
+  id: string; // Unique ID for the chunk
+  content: string; // The actual code content of the chunk
+  startLine: number;
+  endLine: number;
+  bodyOffset: number; // Byte offset of the function body
+  bodyLength: number; // Byte length of the function body
+}
 
+export class SwiftParser {
+  async parseFile(filePath: string): Promise<CodeChunk[]> {
+    console.log(`Parsing Swift file: ${filePath} using SourceKitten`);
     try {
-        const { stdout } = await execPromise(command);
-        return JSON.parse(stdout);
-    } catch (error: any) {
-        if (error.stderr && error.stderr.includes('sourcekitten: command not found')) {
-            console.error('Error: SourceKitten command not found.');
-            console.error('Please install SourceKitten. On macOS with Homebrew, run: brew install sourcekitten');
+      const { stdout } = await execPromise(`sourcekitten structure --file ${filePath}`);
+      const sourceKittenOutput = JSON.parse(stdout);
+      console.log(JSON.stringify(sourceKittenOutput, null, 2));
+
+      const rawFunctions: any[] = [];
+      const collectRawFunctions = (items: any[]) => {
+        for (const item of items) {
+          console.log("Checking item kind:", item['key.kind']);
+          if (item['key.kind'] && item['key.kind'].startsWith('source.lang.swift.decl.function')) {
+            rawFunctions.push(item);
+          }
+          if (item['key.substructure']) {
+            collectRawFunctions(item['key.substructure']);
+          }
+        }
+      };
+      collectRawFunctions(sourceKittenOutput['key.substructure'] || []);
+
+      const functions: CodeChunk[] = await Promise.all(rawFunctions.map(async (item) => {
+        const startLine = item['key.offset'] ? await this.getLineNumber(filePath, item['key.offset']) : 0;
+        const endLine = item['key.offset'] && item['key.length'] ? await this.getLineNumber(filePath, item['key.offset'] + item['key.length']) : 0;
+
+        let signature = item['key.name'] || '';
+        if (item['key.typename']) {
+          signature = `func ${signature} -> ${item['key.typename']}`;
         } else {
-            console.error('Error executing SourceKitten:', error.message);
-            console.error('Stderr:', error.stderr);
+          signature = `func ${signature}`;
         }
-        throw error;
+
+        return parsedData.map((item: any) => {
+      const chunk = {
+        name: item["key.name"],
+        type: item["key.kind"],
+        signature: signature,
+        id: signature,
+        content: '',
+        startLine: startLine,
+        endLine: endLine,
+        bodyOffset: item['key.bodyoffset'] || 0,
+        bodyLength: item['key.bodylength'] || 0,
+      };
+      return chunk;
+    });
+  }
+
+    } catch (error) {
+      console.error(`Error parsing Swift file with SourceKitten: ${error}`);
+      return [];
     }
+  }
+
+  private async getLineNumber(filePath: string, offset: number): Promise<number> {
+    const fileContent = await fs.readFile(filePath, 'utf-8');
+    let lineNumber = 1;
+    for (let i = 0; i < offset; i++) {
+      if (fileContent[i] === '\n') {
+        lineNumber++;
+      }
+    }
+    return lineNumber;
+  }
+
+  async getFunctionContent(filePath: string, functionSignature: string): Promise<string | null> {
+    console.log(`Getting content for function: ${functionSignature} in file: ${filePath}`);
+    try {
+      const fileContent = await fs.readFile(filePath, 'utf-8');
+      const functions = await this.parseFile(filePath);
+      const targetFunction = functions.find(func => func.signature === functionSignature);
+    return targetFunction ? targetFunction.content : null;
+  }
 }
 
-/**
- * Transforms the SourceKitten JSON structure into a simplified dependency graph.
- * @param structure The SourceKitten output structure.
- * @param fileContent The content of the source file.
- * @param filePath The path to the source file.
- * @returns A SimpleDependencyGraph object.
- */
-export function transformStructureToChunks(structure: SourceKittenStructure, fileContent: string, filePath: string): SimpleDependencyGraph {
-    const chunks: SimpleDependencyGraph = {};
-    const fileName = path.basename(filePath);
-
-    function extractEntities(subStructure: SourceKittenStructure): void {
-        if (!subStructure.substructure) return;
-
-        for (const sub of subStructure.substructure) {
-            const { kind, name, offset, length, line } = sub;
-
-            if (name && offset !== undefined && length !== undefined && line !== undefined &&
-                (kind.startsWith('source.lang.swift.decl.function.') ||
-                 kind.startsWith('source.lang.swift.decl.class') ||
-                 kind.startsWith('source.lang.swift.decl.struct'))) {
-
-                const chunkId = `${fileName}_${name}_${line}`;
-                const content = fileContent.substring(offset, offset + length);
-                const endLine = fileContent.substring(0, offset + length).split('\n').length;
-                
-                const calls: string[] = [];
-                if (kind.startsWith('source.lang.swift.decl.function.')) {
-                    const callRegex = /\b([a-zA-Z0-9_]+)\s*\(/g;
-                    let callMatch;
-                    while ((callMatch = callRegex.exec(content)) !== null) {
-                        const calledName = callMatch[1];
-                        if (calledName !== name && !['if', 'for', 'while', 'switch', 'return', 'let', 'var', 'guard', 'do', 'try', 'print'].includes(calledName)) {
-                            calls.push(calledName);
-                        }
-                    }
-                }
-
-                let entityType: CodeChunk['type'] = 'var'; // Default
-                if (kind.includes('function')) entityType = 'function';
-                else if (kind.includes('method')) entityType = 'method';
-                else if (kind.includes('class')) entityType = 'class';
-                else if (kind.includes('struct')) entityType = 'struct';
-
-                chunks[chunkId] = {
-                    id: chunkId,
-                    name: name,
-                    type: entityType,
-                    content: content,
-                    filePath: filePath,
-                    startLine: line,
-                    endLine: endLine,
-                    byteOffset: offset,
-                    byteLength: length,
-                    calls: Array.from(new Set(calls))
-                };
-            }
-            extractEntities(sub);
-        }
+      if (targetFunction && targetFunction.bodyOffset !== undefined && targetFunction.bodyLength !== undefined) {
+        const bodyContent = fileContent.substring(targetFunction.bodyOffset, targetFunction.bodyOffset + targetFunction.bodyLength).trim();
+        return bodyContent;
+      }
+      return null;
+    } catch (error) {
+      console.error(`Error getting function content: ${error}`);
+      return null;
     }
-
-    extractEntities(structure);
-    return chunks;
-}
-
-/**
- * Parses a Swift file using SourceKitten and returns a simplified dependency graph.
- * @param filePath The absolute path to the Swift file to analyze.
- * @returns A SimpleDependencyGraph object.
- */
-export async function parseSwiftFileWithSourceKitten(filePath: string): Promise<SimpleDependencyGraph> {
-    const fileContent = await fs.promises.readFile(filePath, 'utf-8');
-    const sourceKittenOutput = await runSourceKitten(filePath);
-    return transformStructureToChunks(sourceKittenOutput, fileContent, filePath);
+  }
 }

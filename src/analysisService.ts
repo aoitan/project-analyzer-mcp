@@ -1,56 +1,97 @@
-// src/analysisService.ts
-import * as fs from 'fs';
-import * as path from 'path';
-import { parseSwiftFileWithSourceKitten } from './parser';
-import { SimpleDependencyGraph } from './types';
+import { SwiftParser } from './parser';
+import * as fs from 'fs/promises';
 
-// This would typically be a more robust in-memory store or a database interface.
-export const parsedProjects: { [projectPath: string]: SimpleDependencyGraph } = {};
+export class AnalysisService {
+  private swiftParser: SwiftParser;
+  private parsedProjects: Map<string, CodeChunk[]>; // Cache for parsed projects
+  private chunksDir: string = './data/chunks';
 
-const CHUNK_STORAGE_DIR = path.join(__dirname, '../data/chunks');
-if (!fs.existsSync(CHUNK_STORAGE_DIR)) {
-    fs.mkdirSync(CHUNK_STORAGE_DIR, { recursive: true });
-}
+  constructor() {
+    this.swiftParser = new SwiftParser();
+    this.parsedProjects = new Map<string, CodeChunk[]>();
+  }
 
-/**
- * Analyzes a project file, stores the results in memory and persists chunks to the filesystem.
- * @param fullFilePath The absolute path to the file to analyze.
- * @param projectPath The relative project path used as a key for storage.
- * @returns An object containing the count of chunks and a summary of extracted chunks.
- */
-export async function analyzeAndStoreProject(fullFilePath: string, projectPath: string) {
-    const chunks = await parseSwiftFileWithSourceKitten(fullFilePath);
-    
-    // Store the full analysis result in memory.
-    parsedProjects[projectPath] = chunks;
+  private toSafeFileName(name: string): string {
+    return name.replace(/[^a-zA-Z0-9-_.]/g, '_');
+  }
 
-    // Persist each chunk to the filesystem.
-    for (const chunkId in chunks) {
-        const chunk = chunks[chunkId];
-        const chunkFileName = `${chunk.id}.swiftchunk`;
-        const chunkFilePath = path.join(CHUNK_STORAGE_DIR, chunkFileName);
-        await fs.promises.writeFile(chunkFilePath, chunk.content, 'utf-8');
+  async analyzeProject(projectPath: string): Promise<void> {
+    console.log(`AnalysisService: Analyzing project: ${projectPath}`);
+    const files = await this.getSwiftFiles(projectPath);
+    const allChunks: CodeChunk[] = [];
+
+    for (const file of files) {
+      const chunks = await this.swiftParser.parseFile(file);
+      for (const chunk of chunks) {
+        const content = await this.swiftParser.getFunctionContent(file, chunk.signature);
+        if (content) {
+          chunk.content = content;
+        }
+        allChunks.push(chunk);
+        await this.saveChunk(chunk);
+      }
     }
+    this.parsedProjects.set(projectPath, allChunks);
+  }
 
-    const chunkCount = Object.keys(chunks).length;
-    console.log(`[INFO] Analysis complete. Found ${chunkCount} chunks.`);
-
-    return {
-        message: `Successfully analyzed ${path.basename(fullFilePath)}. ${chunkCount} chunks extracted.`,
-        extractedChunks: Object.values(chunks).slice(0, 5).map(c => ({ id: c.id, name: c.name, type: c.type, calls: c.calls }))
-    };
-}
-
-/**
- * Retrieves a specific chunk from the in-memory store.
- * @param projectPath The project path key.
- * @param chunkId The ID of the chunk to retrieve.
- * @returns The target CodeChunk or undefined if not found.
- */
-export function getChunkFromStore(projectPath: string, chunkId: string) {
-    const projectChunks = parsedProjects[projectPath];
-    if (!projectChunks) {
-        return undefined;
+  async getChunk(chunkId: string): Promise<any | null> {
+    console.log(`AnalysisService: Getting chunk: ${chunkId}`);
+    // Try to get from cache first
+    for (const projectChunks of this.parsedProjects.values()) {
+      const cachedChunk = projectChunks.find(chunk => chunk.id === chunkId);
+      if (cachedChunk) {
+        return { content: cachedChunk.content };
+      }
     }
-    return projectChunks[chunkId];
+    // If not in cache, try to load from disk
+    return this.loadChunk(chunkId);
+  }
+
+  private async getSwiftFiles(projectPath: string): Promise<string[]> {
+    // This is a dummy implementation. In a real scenario, this would recursively
+    // find all .swift files within the projectPath.
+    // For now, we'll just return the dummy.swift file.
+    return ['/Users/ma-yabushita/00_work/study/ai/toy/src/__tests__/dummy.swift'];
+  }
+
+  private async saveChunk(chunk: CodeChunk): Promise<void> {
+    const safeChunkId = this.toSafeFileName(chunk.id);
+    const chunkFilePath = `${this.chunksDir}/${safeChunkId}.json`;
+    await fs.mkdir(this.chunksDir, { recursive: true });
+    await fs.writeFile(chunkFilePath, JSON.stringify(chunk, null, 2));
+    console.log(`Saved chunk: ${chunk.id} to ${chunkFilePath}`);
+  }
+
+  private async loadChunk(chunkId: string): Promise<any | null> {
+    const safeChunkId = this.toSafeFileName(chunkId);
+    const chunkFilePath = `${this.chunksDir}/${safeChunkId}.json`;
+    try {
+      const fileContent = await fs.readFile(chunkFilePath, 'utf-8');
+      const chunk = JSON.parse(fileContent);
+      console.log(`Loaded chunk: ${chunk.id} from ${chunkFilePath}`);
+      return { content: chunk.content };
+    } catch (error) {
+      console.error(`Error loading chunk ${chunkId}: ${error}`);
+      return null;
+    }
+  }
+
+  async listFunctionsInFile(filePath: string): Promise<{ signature: string }[]> {
+    console.log(`AnalysisService: Listing functions in file: ${filePath}`);
+    const codeChunks = await this.swiftParser.parseFile(filePath);
+    return codeChunks.filter(chunk => chunk.type.includes('function')).map(chunk => ({
+      signature: chunk.signature
+    }));
+  }
+
+  async getFunctionChunk(filePath: string, functionSignature: string): Promise<{ content: string } | null> {
+    console.log(`AnalysisService: Getting function chunk for ${functionSignature} in ${filePath}`);
+    const content = await this.swiftParser.getFunctionContent(filePath, functionSignature);
+    if (content) {
+      return { content };
+    } else {
+      return null;
+    }
+  }
+
 }

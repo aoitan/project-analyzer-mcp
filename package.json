@@ -1,28 +1,24 @@
 {
   "name": "toy",
   "version": "1.0.0",
-  "description": "MCP Server for code chunking and analysis",
-  "main": "dist/server.js",
+  "main": "jest.setup.js",
+  "type": "module",
+  "directories": {
+    "doc": "doc"
+  },
   "scripts": {
-    "start": "node dist/server.js",
-    "build": "tsc",
-    "test": "jest"
+    "test": "vitest"
   },
   "keywords": [],
   "author": "",
   "license": "ISC",
+  "description": "",
   "dependencies": {
-    "@modelcontextprotocol/sdk": "^1.12.0",
-    "express": "^4.19.2",
-    "util": "^0.12.5"
+    "@modelcontextprotocol/sdk": "^1.13.2",
+    "typescript": "^5.8.3"
   },
   "devDependencies": {
-    "@types/express": "^4.17.21",
-    "@types/jest": "^30.0.0",
-    "@types/node": "^22.15.31",
-    "jest": "^30.0.3",
-    "ts-jest": "^29.4.0",
-    "ts-node": "^10.9.2",
-    "typescript": "^5.8.3"
+    "@vitest/coverage-v8": "^3.2.4",
+    "vitest": "^3.2.4"
   }
 }

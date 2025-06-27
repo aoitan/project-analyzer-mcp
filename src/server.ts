@@ -1,69 +1,96 @@
-import * as path from 'path';
-import { z } from 'zod';
-const { McpServer, defineTool } = require('@modelcontextprotocol/sdk');
-import { analyzeAndStoreProject, getChunkFromStore } from './analysisService';
+import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
+import { AnalysisService } from './analysisService';
 
-// 安全なベースディレクトリを定義
-const SAFE_BASE_DIR = path.resolve(__dirname, './');
+const analysisService = new AnalysisService();
 
-export const analyzeProjectTool = defineTool({
-    name: 'analyze_project',
-    description: 'Analyzes a Swift file to extract code chunks.',
-    input: z.object({
-        projectPath: z.string().describe('The relative path to the project directory.'),
-        targetFile: z.string().describe('The target Swift file to analyze.'),
-    }),
-    handler: async ({ projectPath, targetFile }: { projectPath: string; targetFile: string }) => {
-        const resolvedProjectPath = path.resolve(SAFE_BASE_DIR, projectPath);
-        if (!resolvedProjectPath.startsWith(SAFE_BASE_DIR)) {
-            throw new Error('Invalid project path: Path traversal is not allowed.');
-        }
-
-        const fullFilePath = path.join(resolvedProjectPath, targetFile);
-        if (!path.resolve(fullFilePath).startsWith(resolvedProjectPath)) {
-            throw new Error('Invalid target file path.');
-        }
-
-        return analyzeAndStoreProject(fullFilePath, projectPath);
+// Define tool configurations
+export const toolConfigurations = [
+  {
+    name: "analyze_project",
+    config: {
+      title: "Analyze Project",
+      description: "Analyzes a project and extracts code chunks.",
+      inputSchema: {
+        type: "object",
+        properties: {
+          projectPath: { type: "string", description: "The path to the project to analyze." },
+        },
+        required: ["projectPath"],
+      },
     },
-});
-
-export const getChunkTool = defineTool({
-    name: 'get_chunk',
-    description: 'Retrieves a specific code chunk from an analyzed project.',
-    input: z.object({
-        projectPath: z.string().describe('The relative path to the analyzed project directory.'),
-        chunkId: z.string().describe('The ID of the chunk to retrieve.'),
-    }),
-    handler: async ({ projectPath, chunkId }: { projectPath: string; chunkId: string }) => {
-        const targetChunk = getChunkFromStore(projectPath, chunkId);
-
-        if (!targetChunk) {
-            throw new Error(`Chunk with ID ${chunkId} not found in project ${projectPath}. Or the project has not been analyzed.`);
-        }
-
-        console.log(`[INFO] Providing chunk: ${chunkId}`);
-        return {
-            chunkId: targetChunk.id,
-            code: targetChunk.content,
-            context: {
-                name: targetChunk.name,
-                type: targetChunk.type,
-                filePath: targetChunk.filePath,
-                startLine: targetChunk.startLine,
-                endLine: targetChunk.endLine,
-                calls: targetChunk.calls,
-            }
-        };
+    callback: async (input: { projectPath: string }) => {
+      await analysisService.analyzeProject(input.projectPath);
+      return { status: 'success', message: 'Project analysis completed.' };
     },
-});
+  },
+  {
+    name: "get_chunk",
+    config: {
+      title: "Get Code Chunk",
+      description: "Retrieves a specific code chunk.",
+      inputSchema: {
+        type: "object",
+        properties: {
+          chunkId: { type: "string", description: "The ID of the code chunk to retrieve." },
+        },
+        required: ["chunkId"],
+      },
+    },
+    callback: async (input: { chunkId: string }) => {
+      const chunk = await analysisService.getChunk(input.chunkId);
+      if (chunk) {
+        return { status: 'success', chunk: chunk.content };
+      } else {
+        return { status: 'error', message: 'Chunk not found.' };
+      }
+    },
+  },
+  {
+    name: "list_functions_in_file",
+    config: {
+      title: "List Functions in File",
+      description: "Returns a list of functions found in the specified source file.",
+      inputSchema: {
+        type: "object",
+        properties: {
+          filePath: { type: "string", description: "The absolute path to the source file." },
+        },
+        required: ["filePath"],
+      },
+    },
+    callback: async (input: { filePath: string }) => {
+      return analysisService.listFunctionsInFile(input.filePath);
+    },
+  },
+  {
+    name: "get_function_chunk",
+    config: {
+      title: "Get Function Code Chunk",
+      description: "Returns the code chunk for a specific function in a source file.",
+      inputSchema: {
+        type: "object",
+        properties: {
+          filePath: { type: "string", description: "The absolute path to the source file." },
+          functionSignature: { type: "string", description: "The signature of the function to retrieve." },
+        },
+        required: ["filePath", "functionSignature"],
+      },
+    },
+    callback: async (input: { filePath: string; functionSignature: string }) => {
+      return analysisService.getFunctionChunk(input.filePath, input.functionSignature);
+    },
+  },
+];
 
-const server = new McpServer({
-    tools: [analyzeProjectTool, getChunkTool],
-    port: process.env.PORT ? parseInt(process.env.PORT, 10) : 3000,
-});
+export function createMcpServer() {
+  const server = new McpServer({
+    name: "mcp-code-analysis-server",
+    version: "1.0.0",
+  });
 
-server.listen().then(() => {
-    console.log(`MCP Server running on http://localhost:${server.port}`);
-    console.log('Available tools: analyze_project, get_chunk');
-});
+  toolConfigurations.forEach(tool => {
+    server.registerTool(tool.name, tool.config, tool.callback);
+  });
+
+  return server;
+}
