@@ -7,7 +7,8 @@
     "doc": "doc"
   },
   "scripts": {
-    "test": "vitest"
+    "test": "vitest",
+    "start": "tsx src/index.ts"
   },
   "keywords": [],
   "author": "",
@@ -19,6 +20,7 @@
   },
   "devDependencies": {
     "@vitest/coverage-v8": "^3.2.4",
+    "tsx": "^4.20.3",
     "vitest": "^3.2.4"
   }
 }
