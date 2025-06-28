@@ -53,6 +53,35 @@
 npm test
 ```
 
+## 図の自動レンダリング
+
+`doc/diagrams/` 内のPlantUMLドキュメント（`.puml` ファイル）が更新された際に、自動的に対応する画像（SVG形式）をレンダリングするGit `pre-commit` フックが設定されています。これにより、常に最新の図がリポジトリに反映されることを保証します。
+
+### 設定方法
+
+1.  **PlantUML JARファイルの配置**:
+    `tools/plantuml/` ディレクトリに `plantuml.jar` ファイルを配置してください。
+    もし存在しない場合は、以下のコマンドでダウンロードできます。
+    ```bash
+    mkdir -p tools/plantuml
+    curl -L -o tools/plantuml/plantuml.jar https://github.com/plantuml/plantuml/releases/download/v1.2024.5/plantuml.jar
+    ```
+    **注意**: `plantuml.jar` は `.gitignore` に追加されており、Git管理の対象外です。
+
+2.  **Git `pre-commit` フックの有効化**:
+    プロジェクトのルートディレクトリで以下のコマンドを実行し、`pre-commit` フックスクリプトに実行権限を付与します。
+    ```bash
+    chmod +x .git/hooks/pre-commit
+    ```
+    これにより、コミットが作成される直前に、`doc/diagrams/*.puml` ファイルが自動的にレンダリングされ、生成された `.svg` ファイルがコミットに含められます。
+
+### 手動でのレンダリング
+
+`npm run render-diagrams` コマンドを実行することで、手動で図をレンダリングすることも可能です。
+```bash
+npm run render-diagrams
+```
+
 ## 使用方法
 
 ### MCPサーバーの起動とAgentからの利用
