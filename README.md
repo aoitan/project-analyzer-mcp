@@ -1,39 +1,39 @@
 # MCP Code Analysis Server
 
 ## 概要
-
 このプロジェクトは、大規模言語モデル（LLM）が広範なコードベースを理解し、操作するのを容易にするためのMCP（Model Context Protocol）サーバーの実装です。大規模なソースコードファイルをより小さく、管理しやすい「コードチャンク」に分割し、それらの保存と取得を管理することを主な目的としています。
+
+**本プロジェクトのコードの大部分は、Gemini 2.5 Flashによって生成されており、プログラマの介入は最低限に抑えられています。**
 
 ## 機能
 
 ### 現在実装済みの機能
-
 - **MCPサーバー実装**: TypeScriptとNode.jsを使用し、`@modelcontextprotocol/sdk` を活用して構築されています。
 - **コードチャンク化**: Swiftソースファイルを解析し、関数単位でコードチャンクを抽出します。外部ツールとしてSourceKittenを使用しています。
+    - `getLineNumber` メソッドの正確性を向上させ、`SourceKitten` のオフセット情報から正確な行番号を導出済みです。
 - **ローカルストレージとキャッシュ**: 解析されたコードチャンクは、インメモリキャッシュに保存されるほか、`data/chunks/` ディレクトリにJSONファイルとして永続化されます。
+    - `analyzeProject` の `getSwiftFiles` ダミー実装を、指定されたプロジェクトパス内のすべての `.swift` ファイルを再帰的に探索する実際のロジックに置き換え済みです。
 - **ツール**: 以下のツールが実装されています。
-  - `analyze_project`: 指定されたプロジェクトを解析し、コードチャンクを抽出・保存します。
-  - `get_chunk`: 指定されたチャンクID（関数のシグネチャ）に対応するコードチャンクの内容を返します。
-  - `list_functions_in_file`: 指定されたファイルに含まれる関数の一覧（シグネチャ）を返します。
-  - `get_function_chunk`: 指定されたファイル内の特定の関数のコードチャンク（内容）を返します。
+    - `analyze_project`: 指定されたプロジェクトを解析し、コードチャンクを抽出・保存します。
+    - `get_chunk`: 指定されたチャンクID（関数のシグネチャ）に対応するコードチャンクの内容を返します。
+    - `list_functions_in_file`: 指定されたファイルに含まれる関数の一覧（シグネチャ）を返します。
+    - `get_function_chunk`: 指定されたファイル内の特定の関数のコードチャンク（内容）を返します。
 
 ### 将来実装予定の機能
-
+詳細なロードマップは [開発ロードマップ](doc/roadmap.md) を参照してください。
 - **言語サポートの拡張**: Kotlinなど、他のプログラミング言語への対応。
-- **コードチャンクの粒度拡張**: 変数、プロパティ、クラス、パッケージなど、関数以外の単位でのチャンク取得。
-- **依存関係グラフ**: コードチャンク間の関係と依存関係の解析、保持（メモリ上、将来的にはSQLiteなどの不揮発性ストレージ）。
+- **コードチャンクの粒度拡張**: 変数、プロパティ、クラス、パッケージなど、関数以外の単位でのチャンク取得。大きな関数を関数内関数、クロージャ、制御構造ブロックなどの単位で分割。
+- **ナレッジグラフ構築機能の強化**: 変数・プロパティのデータフロー、関数コールグラフ、クラスの関係、入れ子関係の解析機能を追加。
+- **ナレッジグラフの永続化**: 現状メモリ上にしかないナレッジグラフをローカルに閉じたファイルベースDBとして永続化。
+- **ナレッジグラフの図表化機能の追加**: シーケンス図、クラス図、オブジェクト図、コールグラフ図、データフロー図、一覧表、インターフェイス仕様書（Swaggerなど）の生成機能。図はテキストフォーマット（PlantUML, Mermaid, Dot/Graphviz）で出力。
 
 ## はじめに
 
 ### 前提条件
-
 - Node.js (v18以上を推奨)
 - npm
-- SourceKitten (Swiftコード解析のため)
-  - macOSの場合: `brew install sourcekitten`
 
 ### インストール
-
 1.  リポジトリをクローンします。
     ```bash
     git clone [リポジトリのURL]
@@ -43,81 +43,39 @@
     ```bash
     npm install
     ```
+3.  SourceKittenをインストールします。（Swiftコード解析のため）
+    - macOSの場合: `brew install sourcekitten`
 
 ## テストの実行
 
 プロジェクトのテストはVitestを使用しています。
-
 ```bash
 npm test
 ```
 
 ## 使用方法
 
-### MCPサーバーの起動
-
-MCPサーバーを起動するためのスクリプトはまだ用意されていませんが、`src/server.ts` の `createMcpServer` 関数を使用してサーバーインスタンスを作成できます。
-
-### ツールの利用例
-
-MCPサーバーはLLMからのツール呼び出しを想定しています。以下は、内部的なツールの呼び出し例です。
-
-```typescript
-import { toolConfigurations } from './src/server';
-
-// プロジェクトの解析
-const analyzeProjectTool = toolConfigurations.find((t) => t.name === 'analyze_project');
-if (analyzeProjectTool) {
-  analyzeProjectTool.callback({ projectPath: '/path/to/your/swift/project' });
-}
-
-// ファイル内の関数一覧の取得
-const listFunctionsTool = toolConfigurations.find((t) => t.name === 'list_functions_in_file');
-if (listFunctionsTool) {
-  const functions = await listFunctionsTool.callback({
-    filePath: '/path/to/your/swift/file.swift',
-  });
-  console.log(functions);
-}
-
-// 特定の関数のコードチャンクの取得
-const getFunctionChunkTool = toolConfigurations.find((t) => t.name === 'get_function_chunk');
-if (getFunctionChunkTool) {
-  const chunk = await getFunctionChunkTool.callback({
-    filePath: '/path/to/your/swift/file.swift',
-    functionSignature: 'func yourFunction(param: String) -> Int', // 正しいシグネチャを指定
-  });
-  console.log(chunk);
-}
-
-// チャンクIDを指定してコードチャンクを取得
-const getChunkTool = toolConfigurations.find((t) => t.name === 'get_chunk');
-if (getChunkTool) {
-  const chunkContent = await getChunkTool.callback({ chunkId: 'func yourFunction(param:) -> Int' }); // 正しいチャンクIDを指定
-  console.log(chunkContent);
-}
+### MCPサーバーの起動とAgentからの利用
+MCPサーバーを起動するには、以下のコマンドを実行します。
+```bash
+npm start
 ```
+サーバーが起動したら、Continue, Claude Code, gemini-cliなどのAgentからMCPサーバーを利用するための設定例は [MCPサーバー設定ファイル例](doc/mcp_settings.md) を参照してください。
 
-## プロジェクト構造
+### LLMからのツール利用例
+MCPサーバーはLLMからのツール呼び出しを想定しています。以下は、LLMがサーバーにリクエストする際のプロンプトの例です。
 
-```
-.gitignore
-doc/
-├── architecture.md
-├── swift_parsing_details.md
-└── tools_specification.md
-package.json
-package-lock.json
-src/
-├── __tests__/
-│   ├── dummy.swift
-│   └── server.test.ts
-├── analysisService.ts
-├── parser.ts
-└── server.ts
-tsconfig.json
-vite.config.ts
-```
+#### プロジェクトの解析
+「このプロジェクトのコードベースを解析して、主要な関数と構造を把握してください。」
+
+#### ファイル内の関数一覧の取得
+「`src/MyFile.swift` に含まれるすべての関数のシグネチャを教えてください。」
+
+#### 特定の関数のコードチャンクの取得
+「`src/MyFile.swift` の `func myFunction(param: String) -> Int` 関数の実装コードを教えてください。」
+
+#### チャンクIDを指定してコードチャンクを取得
+「チャンクID `func yourFunction(param:) -> Int` のコード内容を教えてください。」
 
 ## 貢献
 
