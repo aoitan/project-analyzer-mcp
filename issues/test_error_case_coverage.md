@@ -18,9 +18,9 @@
 
 ### 解決方法
 
-- [ ] 各ツールのコールバックにおいて、エラーを返す可能性のある入力に対してテストケースを追加します。
-- [ ] `get_chunk` のテストに、存在しない `chunkId` を渡した場合のテストケースを追加し、`{ status: 'error', message: 'Chunk not found.' }` が返されることを検証します。
-- [ ] `list_functions_in_file` や `get_function_chunk` のテストに、存在しない `filePath` を渡した場合のテストケースを追加し、適切なエラーハンドリングが行われることを検証します。
+- [x] 各ツールのコールバックにおいて、エラーを返す可能性のある入力に対してテストケースを追加します。
+- [x] `get_chunk` のテストに、存在しない `chunkId` を渡した場合のテストケースを追加し、`{ status: 'error', message: 'Chunk not found.' }` が返されることを検証します。
+- [x] `list_functions_in_file` や `get_function_chunk` のテストに、存在しない `filePath` を渡した場合のテストケースを追加し、適切なエラーハンドリングが行われることを検証します。
 - [ ] `parser.ts` の `execPromise` がエラーをスローするシナリオをモックし、`parseFile` や `getFunctionContent` が適切にエラーを処理し、空の配列や `null` を返すことを検証します。
 
 ## その他
