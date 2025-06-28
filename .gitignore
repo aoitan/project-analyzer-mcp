@@ -25,3 +25,6 @@ Session.vim
 # Application Data
 data/
 tools/plantuml/plantuml.jar
+
+# local only
+local.*.md
