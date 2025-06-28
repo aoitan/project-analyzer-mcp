@@ -1,0 +1,83 @@
+@startuml
+
+actor "LLM/Agent" as LLM
+participant "MCP Server (index.ts)" as Server
+participant "AnalysisService" as AS
+participant "SwiftParser" as SP
+participant "SourceKitten" as SK
+participant "File System" as FS
+
+LLM -> Server: callTool("analyze_project", { projectPath: "..." })
+activate Server
+Server -> AS: analyzeProject(projectPath)
+activate AS
+AS -> AS: getSwiftFiles(projectPath)
+activate AS
+AS -> FS: readDirectory(projectPath)
+activate FS
+FS --> AS: swiftFiles
+deactivate FS
+loop for each swiftFile
+  AS -> SP: parseFile(swiftFile)
+  activate SP
+  SP -> SK: structure --file swiftFile
+  activate SK
+  SK --> SP: JSON output
+  deactivate SK
+  SP -> SP: extract functions and metadata
+  SP -> SP: getLineNumber(filePath, offset)
+  activate SP
+  SP -> FS: readFile(filePath)
+  activate FS
+  FS --> SP: fileContent
+  deactivate FS
+  SP --> AS: CodeChunk[]
+  deactivate SP
+  AS -> AS: getFunctionContent(swiftFile, signature)
+  activate AS
+  AS -> SP: parseFile(swiftFile) (re-parse if not cached)
+  activate SP
+  SP -> SK: structure --file swiftFile
+  activate SK
+  SK --> SP: JSON output
+  deactivate SK
+  SP -> SP: extract functions and metadata
+  SP -> SP: getLineNumber(filePath, offset)
+  activate SP
+  SP -> FS: readFile(filePath)
+  activate FS
+  FS --> SP: fileContent
+  deactivate FS
+  SP --> AS: functionContent
+  deactivate SP
+  AS -> FS: saveChunk(CodeChunk)
+  activate FS
+  FS --> AS: saved
+  deactivate FS
+  AS -> AS: add to parsedProjects cache
+end
+AS --> Server: analysis completed
+deactivate AS
+Server --> LLM: { status: "success", message: "..." }
+deactivate Server
+
+LLM -> Server: callTool("get_chunk", { chunkId: "..." })
+activate Server
+Server -> AS: getChunk(chunkId)
+activate AS
+AS -> AS: check parsedProjects cache
+alt chunk found in cache
+  AS --> AS: return cached chunk
+else chunk not in cache
+  AS -> FS: loadChunk(chunkId)
+  activate FS
+  FS --> AS: chunkData
+  deactivate FS
+  AS --> AS: return loaded chunk
+end
+AS --> Server: { content: "..." }
+deactivate AS
+Server --> LLM: { status: "success", chunk: "..." }
+deactivate Server
+
+@enduml

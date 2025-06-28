@@ -1,0 +1,45 @@
+@startuml
+
+class McpServer {
+  + createMcpServer()
+  + registerTool()
+}
+
+class AnalysisService {
+  - swiftParser: SwiftParser
+  - parsedProjects: Map<string, CodeChunk[]>
+  - chunksDir: string
+  + constructor()
+  + analyzeProject(projectPath: string): Promise<void>
+  + getChunk(chunkId: string): Promise<any | null>
+  + listFunctionsInFile(filePath: string): Promise<{ signature: string }[]>
+  + getFunctionChunk(filePath: string, functionSignature: string): Promise<{ content: string } | null>
+  - getSwiftFiles(projectPath: string): Promise<string[]>
+  - saveChunk(chunk: CodeChunk): Promise<void>
+  - loadChunk(chunkId: string): Promise<any | null>
+  - toSafeFileName(name: string): string
+}
+
+class SwiftParser {
+  + parseFile(filePath: string): Promise<CodeChunk[]>
+  + getFunctionContent(filePath: string, functionSignature: string): Promise<string | null>
+  - getLineNumber(filePath: string, offset: number): Promise<number>
+}
+
+interface CodeChunk {
+  name: string
+  type: string
+  signature: string
+  id: string
+  content: string
+  startLine: number
+  endLine: number
+  bodyOffset: number
+  bodyLength: number
+}
+
+McpServer ..> AnalysisService : uses
+AnalysisService ..> SwiftParser : uses
+SwiftParser ..> CodeChunk : creates
+
+@enduml
