@@ -8,7 +8,8 @@
   },
   "scripts": {
     "test": "npm run format && vitest",
-    "start": "npm run format && tsx src/index.ts",
+    "start": "npm run build && node dist/index.js",
+    "build": "tsc",
     "format": "prettier --write \"**/*.{ts,tsx,js,jsx,json,md}\"",
     "render-diagrams": "java -jar tools/plantuml/plantuml.jar -tsvg doc/diagrams/*.puml"
   },
@@ -18,13 +19,14 @@
   "description": "",
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.13.2",
+    "esbuild": "0.25.0",
     "typescript": "^5.8.3"
   },
   "devDependencies": {
+    "@types/node": "^24.0.7",
     "@vitest/coverage-v8": "^3.2.4",
     "glob": "^11.0.3",
     "prettier": "^3.6.2",
-    "tsx": "^4.20.3",
     "vitest": "^3.2.4"
   }
 }

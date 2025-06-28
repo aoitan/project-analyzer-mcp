@@ -1,4 +1,4 @@
-import { toolConfigurations } from '../server';
+import { toolConfigurations } from '../server.js';
 
 describe('MCP Server Tools', () => {
   it('should have correct number of tool configurations', () => {

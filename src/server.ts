@@ -1,19 +1,19 @@
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
-import { AnalysisService } from './analysisService';
+import { AnalysisService } from './analysisService.js';
 import { z } from 'zod';
 
 const analysisService = new AnalysisService();
 
 // Define tool configurations
-export const toolConfigurations = [
+export const toolConfigurations: { name: string; config: { title: string; description: string; inputSchema: z.ZodRawShape }; callback: (...args: any[]) => Promise<any> }[] = [
   {
     name: 'analyze_project',
     config: {
       title: 'Analyze Project',
       description: 'Analyzes a project and extracts code chunks.',
-      inputSchema: {
+      inputSchema: z.object({
         projectPath: z.string().describe('The path to the project to analyze.'),
-      },
+      }).shape,
     },
     callback: async (input: { projectPath: string }) => {
       await analysisService.analyzeProject(input.projectPath);
@@ -27,7 +27,7 @@ export const toolConfigurations = [
       description: 'Retrieves a specific code chunk.',
       inputSchema: z.object({
         chunkId: z.string().describe('The ID of the code chunk to retrieve.'),
-      }),
+      }).shape,
     },
     callback: async (input: { chunkId: string }) => {
       const chunk = await analysisService.getChunk(input.chunkId);
@@ -45,7 +45,7 @@ export const toolConfigurations = [
       description: 'Returns a list of functions found in the specified source file.',
       inputSchema: z.object({
         filePath: z.string().describe('The absolute path to the source file.'),
-      }),
+      }).shape,
     },
     callback: async (input: { filePath: string }) => {
       const functions = await analysisService.listFunctionsInFile(input.filePath);
@@ -60,7 +60,7 @@ export const toolConfigurations = [
       inputSchema: z.object({
         filePath: z.string().describe('The absolute path to the source file.'),
         functionSignature: z.string().describe('The signature of the function to retrieve.'),
-      }),
+      }).shape,
     },
     callback: async (input: { filePath: string; functionSignature: string }) => {
       const content = await analysisService.getFunctionChunk(

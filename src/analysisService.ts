@@ -1,4 +1,4 @@
-import { SwiftParser } from './parser';
+import { SwiftParser, CodeChunk } from './parser.js';
 import * as fs from 'fs/promises';
 import { glob } from 'glob';
 import * as path from 'path';

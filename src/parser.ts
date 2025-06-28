@@ -4,7 +4,7 @@ import * as fs from 'fs/promises';
 
 const execPromise = promisify(exec);
 
-interface CodeChunk {
+export interface CodeChunk {
   name: string;
   type: string;
   signature: string; // Full function signature
