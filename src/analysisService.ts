@@ -34,7 +34,7 @@ export class AnalysisService {
     this.parsedProjects.set(projectPath, allChunks);
   }
 
-  async getChunk(chunkId: string): Promise<any | null> {
+  async getChunk(chunkId: string): Promise<{ content: string } | null> {
     console.log(`AnalysisService: Getting chunk: ${chunkId}`);
     // Try to get from cache first
     for (const projectChunks of this.parsedProjects.values()) {
@@ -78,7 +78,7 @@ export class AnalysisService {
     console.log(`Saved chunk: ${chunk.id} to ${chunkFilePath}`);
   }
 
-  private async loadChunk(chunkId: string): Promise<any | null> {
+  private async loadChunk(chunkId: string): Promise<{ content: string } | null> {
     const safeChunkId = this.toSafeFileName(chunkId);
     const chunkFilePath = `${this.chunksDir}/${safeChunkId}.json`;
     try {

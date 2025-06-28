@@ -11,12 +11,12 @@ class AnalysisService {
   - chunksDir: string
   + constructor(chunksDir: string)
   + analyzeProject(projectPath: string): Promise<void>
-  + getChunk(chunkId: string): Promise<any | null>
+  + getChunk(chunkId: string): Promise<{ content: string } | null>
   + listFunctionsInFile(filePath: string): Promise<{ signature: string }[]>
   + getFunctionChunk(filePath: string, functionSignature: string): Promise<{ content: string } | null>
   - getSwiftFiles(projectPath: string): Promise<string[]>
   - saveChunk(chunk: CodeChunk): Promise<void>
-  - loadChunk(chunkId: string): Promise<any | null>
+  - loadChunk(chunkId: string): Promise<{ content: string } | null>
   - toSafeFileName(name: string): string
 }
 

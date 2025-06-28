@@ -96,7 +96,7 @@ AnalysisService --> KnowledgeGraph : Stores Knowledge Graph (Future)
 3.  **解析**: 解析リクエストの場合、`Analysis Service` は `Parser` モジュールを呼び出します。`Parser` はターゲットコードファイルに対して言語固有の解析ツールを実行します。
 4.  **データ変換**: `Parser` は解析ツールからの生出力を `CodeChunk` オブジェクトに変換します。
 5.  **保存**: `Analysis Service` は `CodeChunk` オブジェクトをインメモリキャッシュに保存し、`data/chunks/` ディレクトリに永続化します。
-6.  **取得**: `get_chunk` リクエストの場合、`Analysis Service` は要求されたチャンクをインメモリキャッシュまたはファイルシステムから取得します。
+6.  **取得**: `get_chunk` リクエストの場合、`Analysis Service` は要求されたチャンクをインメモリキャッシュまたはファイルシステムから取得し、`{ content: string }` 形式で返します。
 7.  **応答**: MCPサーバーは解析の概要または要求されたコードチャンクをクライアントに返します。
 
 ## 6. 各種図
