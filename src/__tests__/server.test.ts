@@ -1,24 +1,31 @@
-import { toolConfigurations } from '../server.js';
+import { createMcpServer } from '../server.js';
 
 describe('MCP Server Tools', () => {
+  let server: any;
+  let tools: any[];
+
+  beforeEach(() => {
+    server = createMcpServer();
+    tools = (server as any).getTools();
+  });
   it('should have correct number of tool configurations', () => {
-    expect(toolConfigurations).toHaveLength(6); // analyze_project, get_chunk, list_functions_in_file, get_function_chunk, find_file, find_function
+    expect(tools).toHaveLength(6); // analyze_project, get_chunk, list_functions_in_file, get_function_chunk, find_file, find_function
   });
 
   it('should have find_file tool configuration', () => {
-    const tool = toolConfigurations.find((t) => t.name === 'find_file');
+    const tool = tools.find((t) => t.name === 'find_file');
     expect(tool).toBeDefined();
     expect(tool?.config.title).toBe('Find File');
   });
 
   it('should have find_function tool configuration', () => {
-    const tool = toolConfigurations.find((t) => t.name === 'find_function');
+    const tool = tools.find((t) => t.name === 'find_function');
     expect(tool).toBeDefined();
     expect(tool?.config.title).toBe('Find Function');
   });
 
   it('find_file callback should return matching files', async () => {
-    const tool = toolConfigurations.find((t) => t.name === 'find_file');
+    const tool = tools.find((t) => t.name === 'find_file');
     const result = await tool?.callback({ pattern: 'src/__tests__/dummy.swift' });
     expect(result.content[0].text).toContain(
       '/Users/ma-yabushita/00_work/study/ai/toy/src/__tests__/dummy.swift',
@@ -26,7 +33,7 @@ describe('MCP Server Tools', () => {
   });
 
   it('find_function callback should return matching functions', async () => {
-    const tool = toolConfigurations.find((t) => t.name === 'find_function');
+    const tool = tools.find((t) => t.name === 'find_function');
     const result = await tool?.callback({
       filePath: '/Users/ma-yabushita/00_work/study/ai/toy/src/__tests__/dummy.swift',
       functionQuery: 'dummyFunction1',
@@ -35,7 +42,7 @@ describe('MCP Server Tools', () => {
   });
 
   it('list_functions_in_file callback should return dummy function signatures', async () => {
-    const tool = toolConfigurations.find((t) => t.name === 'list_functions_in_file');
+    const tool = tools.find((t) => t.name === 'list_functions_in_file');
     const result = await tool?.callback({
       filePath: '/Users/ma-yabushita/00_work/study/ai/toy/src/__tests__/dummy.swift',
     });
@@ -55,14 +62,15 @@ describe('MCP Server Tools', () => {
             null,
             2,
           ),
+          _meta: {},
         },
       ],
     });
   });
 
   it('get_function_chunk callback should return dummy function chunk content', async () => {
-    const tool = toolConfigurations.find((t) => t.name === 'get_function_chunk');
-    const analyzeTool = toolConfigurations.find((t) => t.name === 'analyze_project');
+    const tool = tools.find((t) => t.name === 'get_function_chunk');
+    const analyzeTool = tools.find((t) => t.name === 'analyze_project');
     await analyzeTool?.callback({
       projectPath: '/Users/ma-yabushita/00_work/study/ai/toy/src/__tests__/',
     });
@@ -73,19 +81,23 @@ describe('MCP Server Tools', () => {
     });
     expect(result).toEqual({
       content: [
-        { type: 'text', text: 'func dummyFunction1(param: String) -> Int {\n    return 1\n}' },
+        {
+          type: 'text',
+          text: 'func dummyFunction1(param: String) -> Int {\n    return 1\n}',
+          _meta: {},
+        },
       ],
     });
   });
 
   it('get_function_chunk callback should return null for non-existent function in existing file', async () => {
-    const tool = toolConfigurations.find((t) => t.name === 'get_function_chunk');
+    const tool = tools.find((t) => t.name === 'get_function_chunk');
     const result = await tool?.callback({
       filePath: '/Users/ma-yabushita/00_work/study/ai/toy/src/__tests__/dummy.swift',
       functionSignature: 'func nonExistentFunction()',
     });
     expect(result).toEqual({
-      content: [{ type: 'text', text: 'Function chunk not found.' }],
+      content: [{ type: 'text', text: 'Function chunk not found.', _meta: {} }],
       isError: true,
     });
   });
