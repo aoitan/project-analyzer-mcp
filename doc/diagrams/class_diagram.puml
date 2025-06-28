@@ -21,6 +21,7 @@ class AnalysisService {
 }
 
 class SwiftParser {
+  + constructor(execFn: ExecFunction, readFileFn: ReadFileFunction)
   + parseFile(filePath: string): Promise<CodeChunk[]>
   + getFunctionContent(filePath: string, functionSignature: string): Promise<string | null>
   - getLineNumber(filePath: string, offset: number): Promise<number>
@@ -34,6 +35,8 @@ interface CodeChunk {
   content: string
   startLine: number
   endLine: number
+  offset: number
+  length: number
   bodyOffset: number
   bodyLength: number
 }

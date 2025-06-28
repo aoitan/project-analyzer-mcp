@@ -33,23 +33,6 @@ loop for each swiftFile
   deactivate FS
   SP --> AS: CodeChunk[]
   deactivate SP
-  AS -> AS: getFunctionContent(swiftFile, signature)
-  activate AS
-  AS -> SP: parseFile(swiftFile) (re-parse if not cached)
-  activate SP
-  SP -> SK: structure --file swiftFile
-  activate SK
-  SK --> SP: JSON output
-  deactivate SK
-  SP -> SP: extract functions and metadata
-  SP -> SP: getLineNumber(filePath, offset)
-  activate SP
-  SP -> FS: readFile(filePath)
-  activate FS
-  FS --> SP: fileContent
-  deactivate FS
-  SP --> AS: functionContent
-  deactivate SP
   AS -> FS: saveChunk(CodeChunk)
   activate FS
   FS --> AS: saved

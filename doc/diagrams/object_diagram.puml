@@ -26,12 +26,14 @@ object "dummySwiftFile" as DummyFile {
 
 object "chunkFile1" as ChunkFile1 {
   path = "./data/chunks/func_dummyFunction1_param___-__Int.json"
-  content = "{ ... }"
+  content = "func dummyFunction1(param: String) -> Int {\n    return 1\n}"
 }
 
 object "chunkFile2" as ChunkFile2 {
   path = "./data/chunks/func_dummyFunction2__.json"
-  content = "{ ... }"
+  content = "func dummyFunction2() {
+    print("Hello")
+}"
 }
 
 ServerInstance "1" -- "1" ASInstance : uses

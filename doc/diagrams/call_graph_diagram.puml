@@ -9,7 +9,7 @@
 
 (analyzeProject) --> (getSwiftFiles)
 (analyzeProject) --> (parseFile)
-(analyzeProject) --> (getFunctionContent)
+
 (analyzeProject) --> (saveChunk)
 
 (getChunk) --> (loadChunk)
@@ -25,7 +25,7 @@
 (getLineNumber) --> (fs.readFile)
 
 (getFunctionContent) --> (fs.readFile)
-(getFunctionContent) --> (parseFile)
+
 
 (saveChunk) --> (fs.mkdir)
 (saveChunk) --> (fs.writeFile)
