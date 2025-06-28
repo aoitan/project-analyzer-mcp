@@ -9,19 +9,7 @@ type ReadFileFunction = typeof fsp.readFile;
 const defaultExec: ExecFunction = promisify(cp_exec);
 const defaultReadFile = fsp.readFile;
 
-export interface CodeChunk {
-  name: string;
-  type: string;
-  signature: string; // Full function signature
-  id: string; // Unique ID for the chunk
-  content: string; // The actual code content of the chunk
-  startLine: number;
-  endLine: number;
-  offset: number; // Byte offset of the function start
-  length: number; // Byte length of the function
-  bodyOffset: number; // Byte offset of the function body
-  bodyLength: number; // Byte length of the function body
-}
+import { CodeChunk, SourceKittenStructure } from './types.js';
 
 export class SwiftParser {
   private exec: ExecFunction;
@@ -69,12 +57,26 @@ export class SwiftParser {
             signature = `func ${signature}`;
           }
 
-          return {
+          const content = await this.getFunctionContent(filePath, {
             name: item['key.name'],
             type: item['key.kind'],
             signature: signature,
             id: signature,
             content: '',
+            startLine: startLine,
+            endLine: endLine,
+            bodyOffset: item['key.bodyoffset'] || 0,
+            bodyLength: item['key.bodylength'] || 0,
+            offset: item['key.offset'] || 0,
+            length: item['key.length'] || 0,
+          });
+
+          return {
+            name: item['key.name'],
+            type: item['key.kind'],
+            signature: signature,
+            id: signature,
+            content: content || '',
             startLine: startLine,
             endLine: endLine,
             bodyOffset: item['key.bodyoffset'] || 0,
@@ -101,12 +103,10 @@ export class SwiftParser {
     return lineNumber;
   }
 
-  async getFunctionContent(filePath: string, functionSignature: string): Promise<string | null> {
+  async getFunctionContent(filePath: string, targetFunction: CodeChunk): Promise<string | null> {
     try {
       const fileContentBuffer = await this.readFile(filePath, 'utf-8');
       const fileContent = fileContentBuffer.toString();
-      const functions = await this.parseFile(filePath);
-      const targetFunction = functions.find((func) => func.signature === functionSignature);
 
       if (
         targetFunction &&

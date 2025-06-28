@@ -1,5 +1,6 @@
 import { AnalysisService } from '../analysisService.js';
-import { SwiftParser, CodeChunk } from '../parser.js';
+import { SwiftParser } from '../parser.js';
+import { CodeChunk } from '../types.js';
 import { vi } from 'vitest';
 import * as fs from 'fs/promises';
 import { glob } from 'glob';
@@ -32,8 +33,6 @@ describe('AnalysisService (Unit Tests)', () => {
     content: 'return 1',
     startLine: 1,
     endLine: 3,
-    bodyOffset: 0,
-    bodyLength: 0,
   };
 
   beforeEach(() => {
@@ -59,7 +58,6 @@ describe('AnalysisService (Unit Tests)', () => {
 
     expect(mockGlob).toHaveBeenCalledWith('**/*.swift', { cwd: projectPath, absolute: true });
     expect(mockParseFile).toHaveBeenCalledWith(dummyFilePath);
-    expect(mockGetFunctionContent).toHaveBeenCalledWith(dummyFilePath, dummyChunk.signature);
     expect(mockFs.writeFile).toHaveBeenCalledWith(
       `./data/chunks/${analysisService['toSafeFileName'](dummyChunk.id)}.json`,
       JSON.stringify(dummyChunk, null, 2),
@@ -94,7 +92,6 @@ describe('AnalysisService (Unit Tests)', () => {
 
   it('getFunctionChunk should return function content', async () => {
     const content = await analysisService.getFunctionChunk(dummyFilePath, dummyChunk.signature);
-    expect(mockGetFunctionContent).toHaveBeenCalledWith(dummyFilePath, dummyChunk.signature);
     expect(content).toEqual({ content: dummyChunk.content });
   });
 });

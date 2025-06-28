@@ -1,4 +1,5 @@
-import { SwiftParser, CodeChunk } from './parser.js';
+import { SwiftParser } from './parser.js';
+import { CodeChunk } from './types.js';
 import * as fs from 'fs/promises';
 import { glob } from 'glob';
 import * as path from 'path';
@@ -25,10 +26,6 @@ export class AnalysisService {
     for (const file of files) {
       const chunks = await this.swiftParser.parseFile(file);
       for (const chunk of chunks) {
-        const content = await this.swiftParser.getFunctionContent(file, chunk.signature);
-        if (content) {
-          chunk.content = content;
-        }
         allChunks.push(chunk);
         await this.saveChunk(chunk);
       }
@@ -110,9 +107,11 @@ export class AnalysisService {
     functionSignature: string,
   ): Promise<{ content: string } | null> {
     console.log(`AnalysisService: Getting function chunk for ${functionSignature} in ${filePath}`);
-    const content = await this.swiftParser.getFunctionContent(filePath, functionSignature);
-    if (content) {
-      return { content };
+    const codeChunks = await this.swiftParser.parseFile(filePath);
+    const targetFunction = codeChunks.find((chunk) => chunk.signature === functionSignature);
+
+    if (targetFunction) {
+      return { content: targetFunction.content };
     } else {
       return null;
     }

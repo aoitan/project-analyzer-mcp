@@ -115,13 +115,15 @@ func dummyFunction2() {
     expect(chunks).toHaveLength(2);
     expect(chunks[0].id).toBe('func dummyFunction1(param:) -> Int');
     expect(chunks[0].signature).toBe('func dummyFunction1(param:) -> Int');
-    expect(chunks[0].content).toBe(''); // content is initialized as empty
+    expect(chunks[0].content).toBe(expectedDummyFunction1Content);
     expect(chunks[0].startLine).toBe(1);
     expect(chunks[0].endLine).toBe(3);
 
     expect(chunks[1].id).toBe('func dummyFunction2()');
     expect(chunks[1].signature).toBe('func dummyFunction2()');
-    expect(chunks[1].content).toBe('');
+    expect(chunks[1].content).toBe(`func dummyFunction2() {
+    print("Hello")
+}`);
     expect(chunks[1].startLine).toBe(5);
     expect(chunks[1].endLine).toBe(7);
     console.log('[Test] parseFile success test: End');
@@ -143,10 +145,19 @@ func dummyFunction2() {
 
     const filePath = '/path/to/test.swift';
     const functionSignature = 'func dummyFunction1(param:) -> Int';
-    const content = await parser.getFunctionContent(filePath, functionSignature);
-
-    expect(mockExec).toHaveBeenCalledWith(`sourcekitten structure --file ${filePath}`);
-    expect(mockReadFile).toHaveBeenCalledWith(filePath, 'utf-8');
+    const content = await parser.getFunctionContent(filePath, {
+      name: 'dummyFunction1(param:)',
+      type: 'source.lang.swift.decl.function.free',
+      signature: 'func dummyFunction1(param:) -> Int',
+      id: 'func dummyFunction1(param:) -> Int',
+      content: '',
+      startLine: 1,
+      endLine: 3,
+      bodyOffset: 0,
+      bodyLength: 0,
+      offset: 0,
+      length: 58,
+    });
     expect(content).toBe(expectedDummyFunction1Content);
     console.log('[Test] getFunctionContent success test: End');
   });
@@ -156,9 +167,21 @@ func dummyFunction2() {
 
     const filePath = '/path/to/test.swift';
     const functionSignature = 'func nonExistentFunction() -> Void';
-    const content = await parser.getFunctionContent(filePath, functionSignature);
+    const content = await parser.getFunctionContent(filePath, {
+      name: 'nonExistentFunction()',
+      type: 'source.lang.swift.decl.function.free',
+      signature: 'func nonExistentFunction() -> Void',
+      id: 'func nonExistentFunction() -> Void',
+      content: '',
+      startLine: 0,
+      endLine: 0,
+      bodyOffset: 0,
+      bodyLength: 0,
+      offset: 0,
+      length: 0,
+    });
 
-    expect(content).toBeNull();
+    expect(content).toBe('');
     console.log('[Test] getFunctionContent not found test: End');
   });
 
@@ -169,7 +192,19 @@ func dummyFunction2() {
 
     const filePath = '/path/to/non_existent_file.swift';
     const functionSignature = 'func dummyFunction1(param:) -> Int';
-    const content = await parser.getFunctionContent(filePath, functionSignature);
+    const content = await parser.getFunctionContent(filePath, {
+      name: 'dummyFunction1(param:)',
+      type: 'source.lang.swift.decl.function.free',
+      signature: 'func dummyFunction1(param:) -> Int',
+      id: 'func dummyFunction1(param:) -> Int',
+      content: '',
+      startLine: 1,
+      endLine: 3,
+      bodyOffset: 0,
+      bodyLength: 0,
+      offset: 0,
+      length: 58,
+    });
 
     expect(content).toBeNull();
     console.log('[Test] getFunctionContent file read error test: End');
