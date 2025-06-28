@@ -1,5 +1,6 @@
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { AnalysisService } from './analysisService';
+import { z } from 'zod';
 
 const analysisService = new AnalysisService();
 
@@ -10,13 +11,9 @@ export const toolConfigurations = [
     config: {
       title: 'Analyze Project',
       description: 'Analyzes a project and extracts code chunks.',
-      inputSchema: {
-        type: 'object',
-        properties: {
-          projectPath: { type: 'string', description: 'The path to the project to analyze.' },
-        },
-        required: ['projectPath'],
-      },
+      inputSchema: z.object({
+        projectPath: z.string().describe('The path to the project to analyze.'),
+      }),
     },
     callback: async (input: { projectPath: string }) => {
       await analysisService.analyzeProject(input.projectPath);
@@ -28,13 +25,9 @@ export const toolConfigurations = [
     config: {
       title: 'Get Code Chunk',
       description: 'Retrieves a specific code chunk.',
-      inputSchema: {
-        type: 'object',
-        properties: {
-          chunkId: { type: 'string', description: 'The ID of the code chunk to retrieve.' },
-        },
-        required: ['chunkId'],
-      },
+      inputSchema: z.object({
+        chunkId: z.string().describe('The ID of the code chunk to retrieve.'),
+      }),
     },
     callback: async (input: { chunkId: string }) => {
       const chunk = await analysisService.getChunk(input.chunkId);
@@ -50,13 +43,9 @@ export const toolConfigurations = [
     config: {
       title: 'List Functions in File',
       description: 'Returns a list of functions found in the specified source file.',
-      inputSchema: {
-        type: 'object',
-        properties: {
-          filePath: { type: 'string', description: 'The absolute path to the source file.' },
-        },
-        required: ['filePath'],
-      },
+      inputSchema: z.object({
+        filePath: z.string().describe('The absolute path to the source file.'),
+      }),
     },
     callback: async (input: { filePath: string }) => {
       return analysisService.listFunctionsInFile(input.filePath);
@@ -67,17 +56,10 @@ export const toolConfigurations = [
     config: {
       title: 'Get Function Code Chunk',
       description: 'Returns the code chunk for a specific function in a source file.',
-      inputSchema: {
-        type: 'object',
-        properties: {
-          filePath: { type: 'string', description: 'The absolute path to the source file.' },
-          functionSignature: {
-            type: 'string',
-            description: 'The signature of the function to retrieve.',
-          },
-        },
-        required: ['filePath', 'functionSignature'],
-      },
+      inputSchema: z.object({
+        filePath: z.string().describe('The absolute path to the source file.'),
+        functionSignature: z.string().describe('The signature of the function to retrieve.'),
+      }),
     },
     callback: async (input: { filePath: string; functionSignature: string }) => {
       return analysisService.getFunctionChunk(input.filePath, input.functionSignature);
