@@ -98,3 +98,37 @@ AnalysisService --> KnowledgeGraph : Stores Knowledge Graph (Future)
 5.  **保存**: `Analysis Service` は `CodeChunk` オブジェクトをインメモリキャッシュに保存し、`data/chunks/` ディレクトリに永続化します。
 6.  **取得**: `get_chunk` リクエストの場合、`Analysis Service` は要求されたチャンクをインメモリキャッシュまたはファイルシステムから取得します。
 7.  **応答**: MCPサーバーは解析の概要または要求されたコードチャンクをクライアントに返します。
+
+## 6. 各種図
+
+システムの詳細な構造と動作を理解するために、以下の図を参照してください。
+
+### 6.1. シーケンス図
+
+LLM/AgentがMCPサーバーのツールを呼び出し、コードチャンクを取得するまでの主要なシーケンスを図示します。
+
+![シーケンス図](diagrams/sequence_diagram.puml)
+
+### 6.2. クラス図
+
+主要なクラスとその関係を図示します。
+
+![クラス図](diagrams/class_diagram.puml)
+
+### 6.3. オブジェクト図
+
+実行時のオブジェクトのインスタンスとその関係を図示します。
+
+![オブジェクト図](diagrams/object_diagram.puml)
+
+### 6.4. コールグラフ図
+
+主要な関数/メソッドの呼び出し関係を図示します。
+
+![コールグラフ図](diagrams/call_graph_diagram.puml)
+
+### 6.5. データフロー図
+
+主要なデータとその流れを図示します。
+
+![データフロー図](diagrams/data_flow_diagram.puml)
