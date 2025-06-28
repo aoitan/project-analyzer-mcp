@@ -1,8 +1,15 @@
-import { exec } from 'child_process';
+import { exec as cp_exec } from 'child_process';
 import { promisify } from 'util';
 import * as fs from 'fs/promises';
 
-const execPromise = promisify(exec);
+type ExecFunction = (command: string) => Promise<{ stdout: string; stderr: string }>;
+type ReadFileFunction = (
+  path: fs.PathLike | number,
+  options?: { encoding?: null; flag?: string } | null,
+) => Promise<string | Buffer>;
+
+const defaultExec = promisify(cp_exec);
+const defaultReadFile = fs.readFile;
 
 export interface CodeChunk {
   name: string;
@@ -17,10 +24,18 @@ export interface CodeChunk {
 }
 
 export class SwiftParser {
+  private exec: ExecFunction;
+  private readFile: ReadFileFunction;
+
+  constructor(execFn: ExecFunction = defaultExec, readFileFn: ReadFileFunction = defaultReadFile) {
+    this.exec = execFn;
+    this.readFile = readFileFn;
+  }
+
   async parseFile(filePath: string): Promise<CodeChunk[]> {
-    console.log(`Parsing Swift file: ${filePath} using SourceKitten`);
     try {
-      const { stdout } = await execPromise(`sourcekitten structure --file ${filePath}`);
+      const { stdout } = await this.exec(`sourcekitten structure --file ${filePath}`);
+
       const sourceKittenOutput = JSON.parse(stdout);
 
       const rawFunctions: any[] = [];
@@ -38,13 +53,11 @@ export class SwiftParser {
 
       const functions: CodeChunk[] = await Promise.all(
         rawFunctions.map(async (item) => {
-          const startLine = item['key.offset']
-            ? await this.getLineNumber(filePath, item['key.offset'])
-            : 0;
-          const endLine =
-            item['key.offset'] && item['key.length']
-              ? await this.getLineNumber(filePath, item['key.offset'] + item['key.length'])
-              : 0;
+          const startLine = await this.getLineNumber(filePath, item['key.offset']);
+          const endLine = await this.getLineNumber(
+            filePath,
+            item['key.offset'] + item['key.length'],
+          );
 
           let signature = item['key.name'] || '';
           if (item['key.typename']) {
@@ -66,24 +79,25 @@ export class SwiftParser {
           };
         }),
       );
+
       return functions;
     } catch (error) {
-      console.error(`Error parsing Swift file with SourceKitten: ${error}`);
       return [];
     }
   }
 
   private async getLineNumber(filePath: string, offset: number): Promise<number> {
-    const fileContent = await fs.readFile(filePath, 'utf-8');
+    const fileContent = await this.readFile(filePath, 'utf-8');
     const textUntilOffset = fileContent.slice(0, offset);
     const newlines = textUntilOffset.match(/\r\n|\n|\r/g);
-    return newlines ? newlines.length + 1 : 1;
+    const lineNumber = newlines ? newlines.length + 1 : 1;
+
+    return lineNumber;
   }
 
   async getFunctionContent(filePath: string, functionSignature: string): Promise<string | null> {
-    console.log(`Getting content for function: ${functionSignature} in file: ${filePath}`);
     try {
-      const fileContent = await fs.readFile(filePath, 'utf-8');
+      const fileContent = await this.readFile(filePath, 'utf-8');
       const functions = await this.parseFile(filePath);
       const targetFunction = functions.find((func) => func.signature === functionSignature);
 
@@ -98,11 +112,12 @@ export class SwiftParser {
             targetFunction.bodyOffset + targetFunction.bodyLength,
           )
           .trim();
+
         return bodyContent;
       }
+
       return null;
     } catch (error) {
-      console.error(`Error getting function content: ${error}`);
       return null;
     }
   }
