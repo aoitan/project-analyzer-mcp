@@ -2,7 +2,7 @@ import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { AnalysisService } from './analysisService.js';
 import { z } from 'zod';
 
-const analysisService = new AnalysisService();
+const analysisService = new AnalysisService('./data/chunks');
 
 // Define tool configurations
 export const toolConfigurations: {

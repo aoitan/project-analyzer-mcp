@@ -9,7 +9,7 @@ class AnalysisService {
   - swiftParser: SwiftParser
   - parsedProjects: Map<string, CodeChunk[]>
   - chunksDir: string
-  + constructor()
+  + constructor(chunksDir: string)
   + analyzeProject(projectPath: string): Promise<void>
   + getChunk(chunkId: string): Promise<any | null>
   + listFunctionsInFile(filePath: string): Promise<{ signature: string }[]>

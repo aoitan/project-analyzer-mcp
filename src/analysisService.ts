@@ -7,11 +7,12 @@ import * as path from 'path';
 export class AnalysisService {
   private swiftParser: SwiftParser;
   private parsedProjects: Map<string, CodeChunk[]>; // Cache for parsed projects
-  private chunksDir: string = './data/chunks';
+  private chunksDir: string;
 
-  constructor() {
+  constructor(chunksDir: string = './data/chunks') {
     this.swiftParser = new SwiftParser();
     this.parsedProjects = new Map<string, CodeChunk[]>();
+    this.chunksDir = chunksDir;
   }
 
   private toSafeFileName(name: string): string {
