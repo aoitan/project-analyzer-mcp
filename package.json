@@ -9,7 +9,7 @@
   "scripts": {
     "test": "npm run format && vitest",
     "start": "npm run format && tsx src/index.ts",
-    "format": "prettier --write "**/*.{ts,tsx,js,jsx,json,md}"",
+    "format": "prettier --write \"**/*.{ts,tsx,js,jsx,json,md}\"",
     "render-diagrams": "java -jar tools/plantuml/plantuml.jar -tsvg doc/diagrams/*.puml"
   },
   "keywords": [],
