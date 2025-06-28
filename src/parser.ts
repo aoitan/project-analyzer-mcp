@@ -1,15 +1,13 @@
 import { exec as cp_exec } from 'child_process';
 import { promisify } from 'util';
-import * as fs from 'fs/promises';
+import * as fs from 'fs';
+import * as fsp from 'fs/promises';
 
 type ExecFunction = (command: string) => Promise<{ stdout: string; stderr: string }>;
-type ReadFileFunction = (
-  path: fs.PathLike | number,
-  options?: { encoding?: null; flag?: string } | null,
-) => Promise<string | Buffer>;
+type ReadFileFunction = typeof fsp.readFile;
 
-const defaultExec = promisify(cp_exec);
-const defaultReadFile = fs.readFile;
+const defaultExec: ExecFunction = promisify(cp_exec);
+const defaultReadFile = fsp.readFile;
 
 export interface CodeChunk {
   name: string;
@@ -27,7 +25,10 @@ export class SwiftParser {
   private exec: ExecFunction;
   private readFile: ReadFileFunction;
 
-  constructor(execFn: ExecFunction = defaultExec, readFileFn: ReadFileFunction = defaultReadFile) {
+  constructor(
+    execFn: ExecFunction = defaultExec,
+    readFileFn: ReadFileFunction = defaultReadFile as ReadFileFunction,
+  ) {
     this.exec = execFn;
     this.readFile = readFileFn;
   }
@@ -87,7 +88,8 @@ export class SwiftParser {
   }
 
   private async getLineNumber(filePath: string, offset: number): Promise<number> {
-    const fileContent = await this.readFile(filePath, 'utf-8');
+    const fileContentBuffer = await this.readFile(filePath, 'utf-8');
+    const fileContent = fileContentBuffer.toString();
     const textUntilOffset = fileContent.slice(0, offset);
     const newlines = textUntilOffset.match(/\r\n|\n|\r/g);
     const lineNumber = newlines ? newlines.length + 1 : 1;
@@ -97,7 +99,8 @@ export class SwiftParser {
 
   async getFunctionContent(filePath: string, functionSignature: string): Promise<string | null> {
     try {
-      const fileContent = await this.readFile(filePath, 'utf-8');
+      const fileContentBuffer = await this.readFile(filePath, 'utf-8');
+      const fileContent = fileContentBuffer.toString();
       const functions = await this.parseFile(filePath);
       const targetFunction = functions.find((func) => func.signature === functionSignature);
 
