@@ -107,28 +107,28 @@ AnalysisService --> KnowledgeGraph : Stores Knowledge Graph (Future)
 
 LLM/AgentがMCPサーバーのツールを呼び出し、コードチャンクを取得するまでの主要なシーケンスを図示します。
 
-![シーケンス図](diagrams/sequence_diagram.puml)
+![シーケンス図](diagrams/sequence_diagram.svg)
 
 ### 6.2. クラス図
 
 主要なクラスとその関係を図示します。
 
-![クラス図](diagrams/class_diagram.puml)
+![クラス図](diagrams/class_diagram.svg)
 
 ### 6.3. オブジェクト図
 
 実行時のオブジェクトのインスタンスとその関係を図示します。
 
-![オブジェクト図](diagrams/object_diagram.puml)
+![オブジェクト図](diagrams/object_diagram.svg)
 
 ### 6.4. コールグラフ図
 
 主要な関数/メソッドの呼び出し関係を図示します。
 
-![コールグラフ図](diagrams/call_graph_diagram.puml)
+![コールグラフ図](diagrams/call_graph_diagram.svg)
 
 ### 6.5. データフロー図
 
 主要なデータとその流れを図示します。
 
-![データフロー図](diagrams/data_flow_diagram.puml)
+![データフロー図](diagrams/data_flow_diagram.svg)
