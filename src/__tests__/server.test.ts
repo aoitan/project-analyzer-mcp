@@ -66,4 +66,34 @@ describe('MCP Server Tools', () => {
     });
     expect(result?.content).toContain('return 1');
   });
+
+  it('get_chunk callback should return error for non-existent chunk', async () => {
+    const tool = toolConfigurations.find((t) => t.name === 'get_chunk');
+    const result = await tool?.callback({ chunkId: 'non_existent_chunk_id' });
+    expect(result).toEqual({ status: 'error', message: 'Chunk not found.' });
+  });
+
+  it('list_functions_in_file callback should return empty array for non-existent file', async () => {
+    const tool = toolConfigurations.find((t) => t.name === 'list_functions_in_file');
+    const result = await tool?.callback({ filePath: '/path/to/non_existent_file.swift' });
+    expect(result).toEqual([]);
+  });
+
+  it('get_function_chunk callback should return null for non-existent file', async () => {
+    const tool = toolConfigurations.find((t) => t.name === 'get_function_chunk');
+    const result = await tool?.callback({
+      filePath: '/path/to/non_existent_file.swift',
+      functionSignature: 'func someFunction()',
+    });
+    expect(result).toBeNull();
+  });
+
+  it('get_function_chunk callback should return null for non-existent function in existing file', async () => {
+    const tool = toolConfigurations.find((t) => t.name === 'get_function_chunk');
+    const result = await tool?.callback({
+      filePath: '/Users/ma-yabushita/00_work/study/ai/toy/src/__tests__/dummy.swift',
+      functionSignature: 'func nonExistentFunction()',
+    });
+    expect(result).toBeNull();
+  });
 });

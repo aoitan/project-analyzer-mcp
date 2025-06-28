@@ -6,14 +6,14 @@
 
 大きな関数をより小さなコードチャンクに分割する際の、意味的または構造的な分割点として以下のものが考えられます。
 
--   **関数内関数 (Nested Functions)**: 関数内に定義された別の関数。
--   **クロージャ (Closures/Lambda Expressions)**: インラインで定義されたクロージャ式。
--   **ブロックを構成する制御構造 (Control Flow Blocks)**: `if`, `for`, `while`, `switch`, `guard`, `do-catch` など、独立したコードブロックを形成する制御構造の各ブロック。これらは特定の条件やループ、エラーハンドリングのロジックをカプセル化しているため、意味的なまとまりとして分割できます。
--   **大きな初期化ブロック (Large Initialization Blocks)**: 配列、辞書、構造体、クラスなどの、複数行にわたる複雑なデータ構造の初期化処理。
--   **コメントで区切られたセクション (Comment-Delimited Sections)**: 開発者が意図的にコメントで区切っているコードのセクション。厳密な構文上の分割点ではないが、開発者の意図を反映した意味的なまとまりとして利用できます。
--   **論理的なステップ (Logical Steps/Phases)**: 関数内で複数の明確な論理的ステップやフェーズがある場合、それぞれのステップを分割点とすることができます。
--   **ヘルパー関数への抽出候補 (Candidates for Helper Functions)**: 関数内で繰り返し現れるパターンや、独立した機能を持つがまだ関数として抽出されていないコードブロック。将来的にヘルパー関数として抽出される可能性があり、チャンクとして分割するのに適しています。
--   **エラーハンドリングブロック (Error Handling Blocks)**: `do-catch` ブロックの `catch` 部分や、`guard` 文の `else` 部分など、エラー処理に特化したブロック。
+- **関数内関数 (Nested Functions)**: 関数内に定義された別の関数。
+- **クロージャ (Closures/Lambda Expressions)**: インラインで定義されたクロージャ式。
+- **ブロックを構成する制御構造 (Control Flow Blocks)**: `if`, `for`, `while`, `switch`, `guard`, `do-catch` など、独立したコードブロックを形成する制御構造の各ブロック。これらは特定の条件やループ、エラーハンドリングのロジックをカプセル化しているため、意味的なまとまりとして分割できます。
+- **大きな初期化ブロック (Large Initialization Blocks)**: 配列、辞書、構造体、クラスなどの、複数行にわたる複雑なデータ構造の初期化処理。
+- **コメントで区切られたセクション (Comment-Delimited Sections)**: 開発者が意図的にコメントで区切っているコードのセクション。厳密な構文上の分割点ではないが、開発者の意図を反映した意味的なまとまりとして利用できます。
+- **論理的なステップ (Logical Steps/Phases)**: 関数内で複数の明確な論理的ステップやフェーズがある場合、それぞれのステップを分割点とすることができます。
+- **ヘルパー関数への抽出候補 (Candidates for Helper Functions)**: 関数内で繰り返し現れるパターンや、独立した機能を持つがまだ関数として抽出されていないコードブロック。将来的にヘルパー関数として抽出される可能性があり、チャンクとして分割するのに適しています。
+- **エラーハンドリングブロック (Error Handling Blocks)**: `do-catch` ブロックの `catch` 部分や、`guard` 文の `else` 部分など、エラー処理に特化したブロック。
 
 ## 2. 分割したコードチャンクの表現方法
 
@@ -57,7 +57,7 @@ func largeFunction() {
       "chunkId": "file_path::func_largeFunction_if_block_0",
       "type": "if_statement",
       "startLineInParent": 5, // 親チャンク内での開始行
-      "endLineInParent": 8,   // 親チャンク内での終了行
+      "endLineInParent": 8, // 親チャンク内での終了行
       "placeholder": "// <chunk_id: func_largeFunction_if_block_0>"
     },
     {
@@ -85,7 +85,7 @@ func largeFunction() {
   "type": "if_statement",
   "code": "if isValid(input) {\n    // ... ifブロックの詳細コード ...\n}",
   "startLine": 5, // 元ファイル内での開始行
-  "endLine": 8,   // 元ファイル内での終了行
+  "endLine": 8, // 元ファイル内での終了行
   "metadata": {
     "description": "入力値の検証を行う条件分岐"
   }
@@ -94,14 +94,14 @@ func largeFunction() {
 
 ### 2.4. チャンクに含める情報
 
--   **チャンクID (Chunk ID)**: チャンクを一意に識別するためのID。階層的なID構造を導入します。
-    -   例: `file_path::function_signature::block_type::index`
--   **親チャンクID (Parent Chunk ID)**: そのチャンクがどのチャンク（関数、クラス、別のブロックなど）の内部に存在するかを示すID。
--   **チャンクタイプ (Chunk Type)**: そのチャンクがどのような種類のコードブロックであるかを示すタイプ。
-    -   例: `function`, `closure`, `if_statement`, `for_loop`, `variable_declaration`, `class_definition` など。
--   **コード内容 (Code Content)**: チャンクに含まれる実際のコード。
--   **開始行・終了行 (Start Line / End Line)**: チャンクが元のファイル内でどこからどこまでを占めるかを示す行番号。
--   **オフセットと長さ (Offset / Length)**: 元のファイル内でのバイトオフセットとバイト長。
--   **メタデータ (Metadata)**: チャンクの役割や目的を説明する短いテキスト。
+- **チャンクID (Chunk ID)**: チャンクを一意に識別するためのID。階層的なID構造を導入します。
+  - 例: `file_path::function_signature::block_type::index`
+- **親チャンクID (Parent Chunk ID)**: そのチャンクがどのチャンク（関数、クラス、別のブロックなど）の内部に存在するかを示すID。
+- **チャンクタイプ (Chunk Type)**: そのチャンクがどのような種類のコードブロックであるかを示すタイプ。
+  - 例: `function`, `closure`, `if_statement`, `for_loop`, `variable_declaration`, `class_definition` など。
+- **コード内容 (Code Content)**: チャンクに含まれる実際のコード。
+- **開始行・終了行 (Start Line / End Line)**: チャンクが元のファイル内でどこからどこまでを占めるかを示す行番号。
+- **オフセットと長さ (Offset / Length)**: 元のファイル内でのバイトオフセットとバイト長。
+- **メタデータ (Metadata)**: チャンクの役割や目的を説明する短いテキスト。
 
 このアプローチは、MCPの思想である「必要な時に必要なコンテキストを取得する」という点に非常に合致しており、LLMがコードベースをより効率的にナビゲートし、理解するのに役立つと考えます。
