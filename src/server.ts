@@ -5,7 +5,11 @@ import { z } from 'zod';
 const analysisService = new AnalysisService();
 
 // Define tool configurations
-export const toolConfigurations: { name: string; config: { title: string; description: string; inputSchema: z.ZodRawShape }; callback: (...args: any[]) => Promise<any> }[] = [
+export const toolConfigurations: {
+  name: string;
+  config: { title: string; description: string; inputSchema: z.ZodRawShape };
+  callback: (...args: any[]) => Promise<any>;
+}[] = [
   {
     name: 'analyze_project',
     config: {
@@ -62,16 +66,42 @@ export const toolConfigurations: { name: string; config: { title: string; descri
         functionSignature: z.string().describe('The signature of the function to retrieve.'),
       }).shape,
     },
-    callback: async (input: { filePath: string; functionSignature: string }) => {
-      const content = await analysisService.getFunctionChunk(
-        input.filePath,
-        input.functionSignature,
-      );
+    callback: async (input: { chunkId: string }) => {
+      const content = await analysisService.getChunk(input.chunkId);
       if (content) {
         return { content: [{ type: 'text', text: content.content }] };
       } else {
         return { content: [{ type: 'text', text: 'Function chunk not found.' }], isError: true };
       }
+    },
+  },
+  {
+    name: 'find_file',
+    config: {
+      title: 'Find File',
+      description: 'Finds files matching a given pattern.',
+      inputSchema: z.object({
+        pattern: z.string().describe('The pattern to search for (e.g., *.swift, src/**/*.swift).'),
+      }).shape,
+    },
+    callback: async (input: { pattern: string }) => {
+      const files = await analysisService.findFiles(input.pattern);
+      return { content: [{ type: 'text', text: JSON.stringify(files, null, 2) }] };
+    },
+  },
+  {
+    name: 'find_function',
+    config: {
+      title: 'Find Function',
+      description: 'Finds functions matching a query in a given file.',
+      inputSchema: z.object({
+        filePath: z.string().describe('The absolute path to the source file.'),
+        functionQuery: z.string().describe('The function name or partial signature to search for.'),
+      }).shape,
+    },
+    callback: async (input: { filePath: string; functionQuery: string }) => {
+      const functions = await analysisService.findFunctions(input.filePath, input.functionQuery);
+      return { content: [{ type: 'text', text: JSON.stringify(functions, null, 2) }] };
     },
   },
 ];

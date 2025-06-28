@@ -54,6 +54,24 @@ export class AnalysisService {
     return swiftFiles;
   }
 
+  async findFiles(pattern: string): Promise<string[]> {
+    const files = await glob(pattern, { absolute: true });
+    return files;
+  }
+
+  async findFunctions(
+    filePath: string,
+    functionQuery: string,
+  ): Promise<{ id: string; signature: string }[]> {
+    const codeChunks = await this.swiftParser.parseFile(filePath);
+    const matchingFunctions = codeChunks.filter(
+      (chunk) =>
+        chunk.type.includes('function') &&
+        (chunk.name.includes(functionQuery) || chunk.signature.includes(functionQuery)),
+    );
+    return matchingFunctions.map((chunk) => ({ id: chunk.id, signature: chunk.signature }));
+  }
+
   private async saveChunk(chunk: CodeChunk): Promise<void> {
     const safeChunkId = this.toSafeFileName(chunk.id);
     const chunkFilePath = `${this.chunksDir}/${safeChunkId}.json`;
@@ -82,6 +100,7 @@ export class AnalysisService {
     return codeChunks
       .filter((chunk) => chunk.type.includes('function'))
       .map((chunk) => ({
+        id: chunk.id,
         signature: chunk.signature,
       }));
   }
