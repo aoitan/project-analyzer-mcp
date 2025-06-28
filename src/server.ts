@@ -11,13 +11,13 @@ export const toolConfigurations = [
     config: {
       title: 'Analyze Project',
       description: 'Analyzes a project and extracts code chunks.',
-      inputSchema: z.object({
+      inputSchema: {
         projectPath: z.string().describe('The path to the project to analyze.'),
-      }),
+      },
     },
     callback: async (input: { projectPath: string }) => {
       await analysisService.analyzeProject(input.projectPath);
-      return { status: 'success', message: 'Project analysis completed.' };
+      return { content: [{ type: 'text', text: 'Project analysis completed.' }] };
     },
   },
   {
@@ -32,9 +32,9 @@ export const toolConfigurations = [
     callback: async (input: { chunkId: string }) => {
       const chunk = await analysisService.getChunk(input.chunkId);
       if (chunk) {
-        return { status: 'success', chunk: chunk.content };
+        return { content: [{ type: 'text', text: chunk.content }] };
       } else {
-        return { status: 'error', message: 'Chunk not found.' };
+        return { content: [{ type: 'text', text: 'Chunk not found.' }], isError: true };
       }
     },
   },
@@ -48,7 +48,8 @@ export const toolConfigurations = [
       }),
     },
     callback: async (input: { filePath: string }) => {
-      return analysisService.listFunctionsInFile(input.filePath);
+      const functions = await analysisService.listFunctionsInFile(input.filePath);
+      return { content: [{ type: 'text', text: JSON.stringify(functions, null, 2) }] };
     },
   },
   {
@@ -62,7 +63,15 @@ export const toolConfigurations = [
       }),
     },
     callback: async (input: { filePath: string; functionSignature: string }) => {
-      return analysisService.getFunctionChunk(input.filePath, input.functionSignature);
+      const content = await analysisService.getFunctionChunk(
+        input.filePath,
+        input.functionSignature,
+      );
+      if (content) {
+        return { content: [{ type: 'text', text: content.content }] };
+      } else {
+        return { content: [{ type: 'text', text: 'Function chunk not found.' }], isError: true };
+      }
     },
   },
 ];

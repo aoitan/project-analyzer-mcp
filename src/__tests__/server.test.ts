@@ -34,7 +34,7 @@ describe('MCP Server Tools', () => {
     const result = await tool?.callback({
       projectPath: '/Users/ma-yabushita/00_work/study/ai/toy',
     });
-    expect(result).toEqual({ status: 'success', message: 'Project analysis completed.' });
+    expect(result).toEqual({ content: [{ type: 'text', text: 'Project analysis completed.' }] });
   });
 
   it('get_chunk callback should return dummy chunk content', async () => {
@@ -44,7 +44,7 @@ describe('MCP Server Tools', () => {
     await analyzeTool?.callback({ projectPath: '/Users/ma-yabushita/00_work/study/ai/toy' });
 
     const result = await tool?.callback({ chunkId: 'func dummyFunction1(param:) -> Int' });
-    expect(result).toEqual({ status: 'success', chunk: 'return 1' });
+    expect(result).toEqual({ content: [{ type: 'text', text: 'return 1' }] });
   });
 
   it('list_functions_in_file callback should return dummy function signatures', async () => {
@@ -52,10 +52,21 @@ describe('MCP Server Tools', () => {
     const result = await tool?.callback({
       filePath: '/Users/ma-yabushita/00_work/study/ai/toy/src/__tests__/dummy.swift',
     });
-    expect(result).toEqual([
-      { signature: 'func dummyFunction1(param:) -> Int' },
-      { signature: 'func dummyFunction2()' },
-    ]);
+    expect(result).toEqual({
+      content: [
+        {
+          type: 'text',
+          text: JSON.stringify(
+            [
+              { signature: 'func dummyFunction1(param:) -> Int' },
+              { signature: 'func dummyFunction2()' },
+            ],
+            null,
+            2,
+          ),
+        },
+      ],
+    });
   });
 
   it('get_function_chunk callback should return dummy function chunk content', async () => {
@@ -64,19 +75,22 @@ describe('MCP Server Tools', () => {
       filePath: '/Users/ma-yabushita/00_work/study/ai/toy/src/__tests__/dummy.swift',
       functionSignature: 'func dummyFunction1(param:) -> Int',
     });
-    expect(result?.content).toContain('return 1');
+    expect(result).toEqual({ content: [{ type: 'text', text: 'return 1' }] });
   });
 
   it('get_chunk callback should return error for non-existent chunk', async () => {
     const tool = toolConfigurations.find((t) => t.name === 'get_chunk');
     const result = await tool?.callback({ chunkId: 'non_existent_chunk_id' });
-    expect(result).toEqual({ status: 'error', message: 'Chunk not found.' });
+    expect(result).toEqual({
+      content: [{ type: 'text', text: 'Chunk not found.' }],
+      isError: true,
+    });
   });
 
   it('list_functions_in_file callback should return empty array for non-existent file', async () => {
     const tool = toolConfigurations.find((t) => t.name === 'list_functions_in_file');
     const result = await tool?.callback({ filePath: '/path/to/non_existent_file.swift' });
-    expect(result).toEqual([]);
+    expect(result).toEqual({ content: [{ type: 'text', text: JSON.stringify([], null, 2) }] });
   });
 
   it('get_function_chunk callback should return null for non-existent file', async () => {
@@ -85,7 +99,10 @@ describe('MCP Server Tools', () => {
       filePath: '/path/to/non_existent_file.swift',
       functionSignature: 'func someFunction()',
     });
-    expect(result).toBeNull();
+    expect(result).toEqual({
+      content: [{ type: 'text', text: 'Function chunk not found.' }],
+      isError: true,
+    });
   });
 
   it('get_function_chunk callback should return null for non-existent function in existing file', async () => {
@@ -94,6 +111,9 @@ describe('MCP Server Tools', () => {
       filePath: '/Users/ma-yabushita/00_work/study/ai/toy/src/__tests__/dummy.swift',
       functionSignature: 'func nonExistentFunction()',
     });
-    expect(result).toBeNull();
+    expect(result).toEqual({
+      content: [{ type: 'text', text: 'Function chunk not found.' }],
+      isError: true,
+    });
   });
 });
