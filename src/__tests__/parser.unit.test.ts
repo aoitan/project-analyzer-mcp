@@ -100,6 +100,10 @@ func dummyFunction2() {
 }
 `;
 
+  const expectedDummyFunction1Content = `func dummyFunction1(param: String) -> Int {
+    return 1
+}`;
+
   it('parseFile should return CodeChunk array on success', async () => {
     mockExec.mockResolvedValue({ stdout: mockSourceKittenOutput, stderr: '' });
     mockReadFile.mockResolvedValue(mockFileContent);
@@ -143,7 +147,7 @@ func dummyFunction2() {
 
     expect(mockExec).toHaveBeenCalledWith(`sourcekitten structure --file ${filePath}`);
     expect(mockReadFile).toHaveBeenCalledWith(filePath, 'utf-8');
-    expect(content).toBe('return 1');
+    expect(content).toBe(expectedDummyFunction1Content);
     console.log('[Test] getFunctionContent success test: End');
   });
 

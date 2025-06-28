@@ -17,6 +17,8 @@ export interface CodeChunk {
   content: string; // The actual code content of the chunk
   startLine: number;
   endLine: number;
+  offset: number; // Byte offset of the function start
+  length: number; // Byte length of the function
   bodyOffset: number; // Byte offset of the function body
   bodyLength: number; // Byte length of the function body
 }
@@ -77,6 +79,8 @@ export class SwiftParser {
             endLine: endLine,
             bodyOffset: item['key.bodyoffset'] || 0,
             bodyLength: item['key.bodylength'] || 0,
+            offset: item['key.offset'] || 0,
+            length: item['key.length'] || 0,
           };
         }),
       );
@@ -106,14 +110,11 @@ export class SwiftParser {
 
       if (
         targetFunction &&
-        targetFunction.bodyOffset !== undefined &&
-        targetFunction.bodyLength !== undefined
+        targetFunction.offset !== undefined &&
+        targetFunction.length !== undefined
       ) {
         const bodyContent = fileContent
-          .substring(
-            targetFunction.bodyOffset,
-            targetFunction.bodyOffset + targetFunction.bodyLength,
-          )
+          .substring(targetFunction.offset, targetFunction.offset + targetFunction.length)
           .trim();
 
         return bodyContent;
