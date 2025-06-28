@@ -62,16 +62,27 @@ describe('MCP Server Tools', () => {
 
   it('get_function_chunk callback should return dummy function chunk content', async () => {
     const tool = toolConfigurations.find((t) => t.name === 'get_function_chunk');
-    const result = await tool?.callback({
-      chunkId: 'func dummyFunction1(param:) -> Int',
+    const analyzeTool = toolConfigurations.find((t) => t.name === 'analyze_project');
+    await analyzeTool?.callback({
+      projectPath: '/Users/ma-yabushita/00_work/study/ai/toy/src/__tests__/',
     });
-    expect(result).toEqual({ content: [{ type: 'text', text: 'return 1' }] });
+
+    const result = await tool?.callback({
+      filePath: '/Users/ma-yabushita/00_work/study/ai/toy/src/__tests__/dummy.swift',
+      functionSignature: 'func dummyFunction1(param:) -> Int',
+    });
+    expect(result).toEqual({
+      content: [
+        { type: 'text', text: 'func dummyFunction1(param: String) -> Int {\n    return 1\n}' },
+      ],
+    });
   });
 
   it('get_function_chunk callback should return null for non-existent function in existing file', async () => {
     const tool = toolConfigurations.find((t) => t.name === 'get_function_chunk');
     const result = await tool?.callback({
-      chunkId: 'func nonExistentFunction()',
+      filePath: '/Users/ma-yabushita/00_work/study/ai/toy/src/__tests__/dummy.swift',
+      functionSignature: 'func nonExistentFunction()',
     });
     expect(result).toEqual({
       content: [{ type: 'text', text: 'Function chunk not found.' }],

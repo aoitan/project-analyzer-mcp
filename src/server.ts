@@ -66,8 +66,11 @@ export const toolConfigurations: {
         functionSignature: z.string().describe('The signature of the function to retrieve.'),
       }).shape,
     },
-    callback: async (input: { chunkId: string }) => {
-      const content = await analysisService.getChunk(input.chunkId);
+    callback: async (input: { filePath: string; functionSignature: string }) => {
+      const content = await analysisService.getFunctionChunk(
+        input.filePath,
+        input.functionSignature,
+      );
       if (content) {
         return { content: [{ type: 'text', text: content.content }] };
       } else {
