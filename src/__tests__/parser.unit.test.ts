@@ -140,6 +140,36 @@ func dummyFunction2() {
     console.log('[Test] parseFile error test: End');
   });
 
+  it('parseFile should return empty array on SourceKitten exec error', async () => {
+    mockExec.mockRejectedValue(new Error('SourceKitten command failed'));
+
+    const filePath = '/path/to/exec_error.swift';
+    const chunks = await parser.parseFile(filePath);
+
+    expect(mockExec).toHaveBeenCalledWith(`sourcekitten structure --file ${filePath}`);
+    expect(chunks).toEqual([]);
+  });
+
+  it('getFunctionContent should return null on SourceKitten exec error', async () => {
+    mockExec.mockRejectedValue(new Error('SourceKitten command failed'));
+    mockReadFile.mockRejectedValue(new Error('File read failed'));
+
+    const filePath = '/path/to/exec_error.swift';
+    const content = await parser.getFunctionContent(filePath, {
+      name: 'dummyFunction1(param:)',
+      type: 'source.lang.swift.decl.function.free',
+      signature: 'func dummyFunction1(param:) -> Int',
+      id: 'func dummyFunction1(param:) -> Int',
+      content: '',
+      startLine: 1,
+      endLine: 3,
+      offset: 0,
+      length: 58,
+    });
+
+    expect(content).toBeNull();
+  });
+
   it('getFunctionContent should return function content on success', async () => {
     console.log('[Test] getFunctionContent success test: Start');
 
