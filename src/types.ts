@@ -4,6 +4,7 @@
 export interface CodeChunk {
   id: string; // ユニークなID (例: ファイル名_関数名_行番号)
   name: string; // 関数名/メソッド名
+  signature: string; // Full function signature
   type: string; // 型の正確な判別
   content: string; // コードの内容
   filePath: string; // 元のファイルパス

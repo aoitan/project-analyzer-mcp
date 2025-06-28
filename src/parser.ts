@@ -63,12 +63,12 @@ export class SwiftParser {
             signature: signature,
             id: signature,
             content: '',
+            filePath: filePath,
             startLine: startLine,
             endLine: endLine,
-            bodyOffset: item['key.bodyoffset'] || 0,
-            bodyLength: item['key.bodylength'] || 0,
             offset: item['key.offset'] || 0,
             length: item['key.length'] || 0,
+            calls: [],
           });
 
           return {
@@ -77,12 +77,12 @@ export class SwiftParser {
             signature: signature,
             id: signature,
             content: content || '',
+            filePath: filePath,
             startLine: startLine,
             endLine: endLine,
-            bodyOffset: item['key.bodyoffset'] || 0,
-            bodyLength: item['key.bodylength'] || 0,
             offset: item['key.offset'] || 0,
             length: item['key.length'] || 0,
+            calls: [],
           };
         }),
       );
