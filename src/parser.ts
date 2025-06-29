@@ -89,26 +89,19 @@ export class SwiftParser {
             signature = `func ${signature}`;
           }
 
-          const content = await this.getFunctionContent(filePath, {
-            name: item['key.name'],
-            type: item['key.kind'],
-            signature: signature,
-            id: signature,
-            content: '',
-            filePath: filePath,
-            startLine: startLine,
-            endLine: endLine,
-            offset: item['key.offset'] || 0,
-            length: item['key.length'] || 0,
-            calls: [],
-          });
+          const fileContentBuffer = await this.readFile(filePath, 'utf-8');
+          const fileContent = fileContentBuffer.toString();
+          const content = fileContent.substring(
+            item['key.offset'] || 0,
+            (item['key.offset'] || 0) + (item['key.length'] || 0),
+          );
 
           return {
             name: item['key.name'],
             type: item['key.kind'],
             signature: signature,
             id: signature,
-            content: content || '',
+            content: content, // trim() を削除
             filePath: filePath,
             startLine: startLine,
             endLine: endLine,
