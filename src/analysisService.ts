@@ -20,6 +20,10 @@ export class AnalysisService {
 
   async analyzeProject(projectPath: string): Promise<void> {
     logger.info(`AnalysisService: Analyzing project: ${projectPath}`);
+    // 既存のチャンクファイルを削除して、常に最新の解析結果を保存するようにする
+    await fs.rm(this.chunksDir, { recursive: true, force: true });
+    await fs.mkdir(this.chunksDir, { recursive: true });
+
     const swiftFiles = await glob('**/*.swift', { cwd: projectPath, absolute: true });
     const kotlinFiles = await glob('**/*.kt', { cwd: projectPath, absolute: true });
     const allFiles = [...swiftFiles, ...kotlinFiles];
@@ -82,9 +86,7 @@ export class AnalysisService {
     }
     const codeChunks = await parser.parseFile(filePath);
     const matchingFunctions = codeChunks.filter(
-      (chunk) =>
-        chunk.type.includes('function') &&
-        (chunk.name.includes(functionQuery) || chunk.signature.includes(functionQuery)),
+      (chunk) => chunk.type.includes('function') && chunk.signature.includes(functionQuery), // signature で完全一致を試みる
     );
     return matchingFunctions.map((chunk) => ({ id: chunk.id, signature: chunk.signature }));
   }
