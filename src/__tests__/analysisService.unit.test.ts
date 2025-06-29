@@ -16,11 +16,19 @@ class MockSwiftParser implements IParser {
   }
 }
 
+class MockKotlinParser implements IParser {
+  async parseFile(filePath: string): Promise<CodeChunk[]> {
+    return mockParseFile(filePath);
+  }
+}
+
 vi.mock('../parserFactory.js', () => ({
   ParserFactory: {
     getParser: vi.fn((language: string) => {
       if (language === 'swift') {
         return new MockSwiftParser();
+      } else if (language === 'kotlin') {
+        return new MockKotlinParser();
       }
       throw new Error(`No parser registered for language '${language}'.`);
     }),
@@ -36,8 +44,9 @@ const mockGlob = vi.mocked(glob);
 
 describe('AnalysisService (Unit Tests)', () => {
   let analysisService: AnalysisService;
-  const dummyFilePath = '/test/project/dummy.swift';
-  const dummyChunk: CodeChunk = {
+  const dummySwiftFilePath = '/test/project/dummy.swift';
+  const dummyKotlinFilePath = '/test/project/dummy.kt';
+  const dummySwiftChunk: CodeChunk = {
     name: 'dummyFunction1(param:)',
     type: 'source.lang.swift.decl.function.free',
     signature: 'func dummyFunction1(param:) -> Int',
@@ -45,9 +54,23 @@ describe('AnalysisService (Unit Tests)', () => {
     content: 'return 1',
     startLine: 1,
     endLine: 3,
-    filePath: dummyFilePath, // CodeChunk に filePath を追加
+    filePath: dummySwiftFilePath,
     offset: 0,
     length: 0,
+    calls: [],
+  };
+
+  const dummyKotlinChunk: CodeChunk = {
+    id: 'fun main()',
+    name: 'main',
+    signature: 'fun main()',
+    type: 'source.lang.kotlin.decl.function.free',
+    content: 'fun main() { /* ... */ }',
+    filePath: dummyKotlinFilePath,
+    startLine: 1,
+    endLine: 5,
+    offset: 0,
+    length: 100,
     calls: [],
   };
 
@@ -59,61 +82,99 @@ describe('AnalysisService (Unit Tests)', () => {
     // これは vi.mock('../parserFactory.js') で既に設定済み
 
     // MockSwiftParser の parseFile メソッドの振る舞いを設定
-    mockParseFile.mockResolvedValue([dummyChunk]);
+    mockParseFile.mockResolvedValue([dummySwiftChunk]);
 
     // Mock fs/promises methods
     mockFs.mkdir.mockResolvedValue(undefined);
     mockFs.writeFile.mockResolvedValue(undefined);
-    mockFs.readFile.mockResolvedValue(JSON.stringify(dummyChunk));
+    mockFs.readFile.mockResolvedValue(JSON.stringify(dummySwiftChunk));
 
     // Mock glob
-    mockGlob.mockResolvedValue([dummyFilePath]);
+    mockGlob.mockResolvedValue([dummySwiftFilePath]);
   });
 
-  it('analyzeProject should parse files and save chunks', async () => {
+  it('analyzeProject should parse Swift files and save chunks', async () => {
     const projectPath = '/test/project';
     await analysisService.analyzeProject(projectPath);
 
     expect(mockGlob).toHaveBeenCalledWith('**/*.swift', { cwd: projectPath, absolute: true });
-    expect(ParserFactory.getParser).toHaveBeenCalledWith('swift'); // getParser が呼ばれたことを確認
-    expect(mockParseFile).toHaveBeenCalledWith(dummyFilePath);
+    expect(ParserFactory.getParser).toHaveBeenCalledWith('swift');
+    expect(mockParseFile).toHaveBeenCalledWith(dummySwiftFilePath);
     expect(mockFs.writeFile).toHaveBeenCalledWith(
-      `./data/chunks/${analysisService['toSafeFileName'](dummyChunk.id)}.json`,
-      JSON.stringify(dummyChunk, null, 2),
+      `./data/chunks/${analysisService['toSafeFileName'](dummySwiftChunk.id)}.json`,
+      JSON.stringify(dummySwiftChunk, null, 2),
+    );
+  });
+
+  it('analyzeProject should parse Kotlin files and save chunks', async () => {
+    const projectPath = '/test/project';
+    mockGlob.mockResolvedValueOnce([dummyKotlinFilePath]); // Kotlinファイルのみを返すようにモック
+    mockParseFile.mockResolvedValueOnce([dummyKotlinChunk]); // Kotlinチャンクを返すようにモック
+
+    await analysisService.analyzeProject(projectPath);
+
+    expect(mockGlob).toHaveBeenCalledWith('**/*.kt', { cwd: projectPath, absolute: true });
+    expect(ParserFactory.getParser).toHaveBeenCalledWith('kotlin');
+    expect(mockParseFile).toHaveBeenCalledWith(dummyKotlinFilePath);
+    expect(mockFs.writeFile).toHaveBeenCalledWith(
+      `./data/chunks/${analysisService['toSafeFileName'](dummyKotlinChunk.id)}.json`,
+      JSON.stringify(dummyKotlinChunk, null, 2),
     );
   });
 
   it('getChunk should return chunk from cache if available', async () => {
     // Populate cache first
-    analysisService['parsedProjects'].set('/test/project', [dummyChunk]);
+    analysisService['parsedProjects'].set('/test/project', [dummySwiftChunk]);
 
-    const chunk = await analysisService.getChunk(dummyChunk.id);
-    expect(chunk).toEqual({ content: dummyChunk.content });
+    const chunk = await analysisService.getChunk(dummySwiftChunk.id);
+    expect(chunk).toEqual({ content: dummySwiftChunk.content });
     expect(mockFs.readFile).not.toHaveBeenCalled(); // Should not read from disk
   });
 
   it('getChunk should load chunk from disk if not in cache', async () => {
     analysisService['parsedProjects'].clear(); // Ensure cache is empty
 
-    const chunk = await analysisService.getChunk(dummyChunk.id);
+    const chunk = await analysisService.getChunk(dummySwiftChunk.id);
     expect(mockFs.readFile).toHaveBeenCalledWith(
-      `./data/chunks/${analysisService['toSafeFileName'](dummyChunk.id)}.json`,
+      `./data/chunks/${analysisService['toSafeFileName'](dummySwiftChunk.id)}.json`,
       'utf-8',
     );
-    expect(chunk).toEqual({ content: dummyChunk.content });
+    expect(chunk).toEqual({ content: dummySwiftChunk.content });
   });
 
-  it('listFunctionsInFile should return list of functions', async () => {
-    const functions = await analysisService.listFunctionsInFile(dummyFilePath);
-    expect(ParserFactory.getParser).toHaveBeenCalledWith('swift'); // getParser が呼ばれたことを確認
-    expect(mockParseFile).toHaveBeenCalledWith(dummyFilePath);
-    expect(functions).toEqual([{ id: dummyChunk.id, signature: dummyChunk.signature }]);
+  it('listFunctionsInFile should return list of functions for Swift file', async () => {
+    const functions = await analysisService.listFunctionsInFile(dummySwiftFilePath);
+    expect(ParserFactory.getParser).toHaveBeenCalledWith('swift');
+    expect(mockParseFile).toHaveBeenCalledWith(dummySwiftFilePath);
+    expect(functions).toEqual([{ id: dummySwiftChunk.id, signature: dummySwiftChunk.signature }]);
   });
 
-  it('getFunctionChunk should return function content', async () => {
-    const content = await analysisService.getFunctionChunk(dummyFilePath, dummyChunk.signature);
-    expect(ParserFactory.getParser).toHaveBeenCalledWith('swift'); // getParser が呼ばれたことを確認
-    expect(mockParseFile).toHaveBeenCalledWith(dummyFilePath);
-    expect(content).toEqual({ content: dummyChunk.content });
+  it('listFunctionsInFile should return list of functions for Kotlin file', async () => {
+    mockParseFile.mockResolvedValueOnce([dummyKotlinChunk]); // Kotlinチャンクを返すようにモック
+    const functions = await analysisService.listFunctionsInFile(dummyKotlinFilePath);
+    expect(ParserFactory.getParser).toHaveBeenCalledWith('kotlin');
+    expect(mockParseFile).toHaveBeenCalledWith(dummyKotlinFilePath);
+    expect(functions).toEqual([{ id: dummyKotlinChunk.id, signature: dummyKotlinChunk.signature }]);
+  });
+
+  it('getFunctionChunk should return function content for Swift file', async () => {
+    const content = await analysisService.getFunctionChunk(
+      dummySwiftFilePath,
+      dummySwiftChunk.signature,
+    );
+    expect(ParserFactory.getParser).toHaveBeenCalledWith('swift');
+    expect(mockParseFile).toHaveBeenCalledWith(dummySwiftFilePath);
+    expect(content).toEqual({ content: dummySwiftChunk.content });
+  });
+
+  it('getFunctionChunk should return function content for Kotlin file', async () => {
+    mockParseFile.mockResolvedValueOnce([dummyKotlinChunk]); // Kotlinチャンクを返すようにモック
+    const content = await analysisService.getFunctionChunk(
+      dummyKotlinFilePath,
+      dummyKotlinChunk.signature,
+    );
+    expect(ParserFactory.getParser).toHaveBeenCalledWith('kotlin');
+    expect(mockParseFile).toHaveBeenCalledWith(dummyKotlinFilePath);
+    expect(content).toEqual({ content: dummyKotlinChunk.content });
   });
 });

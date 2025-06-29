@@ -20,11 +20,21 @@ export class AnalysisService {
 
   async analyzeProject(projectPath: string): Promise<void> {
     logger.info(`AnalysisService: Analyzing project: ${projectPath}`);
-    const files = await this.getSwiftFiles(projectPath);
+    const swiftFiles = await glob('**/*.swift', { cwd: projectPath, absolute: true });
+    const kotlinFiles = await glob('**/*.kt', { cwd: projectPath, absolute: true });
+    const allFiles = [...swiftFiles, ...kotlinFiles];
     const allChunks: CodeChunk[] = [];
 
-    for (const file of files) {
-      const parser = ParserFactory.getParser('swift'); // Swiftパーサーを取得
+    for (const file of allFiles) {
+      let parser: IParser;
+      if (file.endsWith('.swift')) {
+        parser = ParserFactory.getParser('swift');
+      } else if (file.endsWith('.kt')) {
+        parser = ParserFactory.getParser('kotlin');
+      } else {
+        logger.warn(`Unsupported file type: ${file}`);
+        continue;
+      }
       const chunks = await parser.parseFile(file);
       for (const chunk of chunks) {
         allChunks.push(chunk);
@@ -48,8 +58,8 @@ export class AnalysisService {
   }
 
   private async getSwiftFiles(projectPath: string): Promise<string[]> {
-    const swiftFiles = await glob('**/*.swift', { cwd: projectPath, absolute: true });
-    return swiftFiles;
+    // このメソッドはもはや不要だが、既存のコードとの互換性のため残す
+    return glob('**/*.swift', { cwd: projectPath, absolute: true });
   }
 
   async findFiles(pattern: string): Promise<string[]> {
@@ -61,7 +71,15 @@ export class AnalysisService {
     filePath: string,
     functionQuery: string,
   ): Promise<{ id: string; signature: string }[]> {
-    const parser = ParserFactory.getParser('swift'); // Swiftパーサーを取得
+    let parser: IParser;
+    if (filePath.endsWith('.swift')) {
+      parser = ParserFactory.getParser('swift');
+    } else if (filePath.endsWith('.kt')) {
+      parser = ParserFactory.getParser('kotlin');
+    } else {
+      logger.warn(`Unsupported file type for function search: ${filePath}`);
+      return [];
+    }
     const codeChunks = await parser.parseFile(filePath);
     const matchingFunctions = codeChunks.filter(
       (chunk) =>
@@ -95,7 +113,15 @@ export class AnalysisService {
 
   async listFunctionsInFile(filePath: string): Promise<{ signature: string }[]> {
     logger.info(`AnalysisService: Listing functions in file: ${filePath}`);
-    const parser = ParserFactory.getParser('swift'); // Swiftパーサーを取得
+    let parser: IParser;
+    if (filePath.endsWith('.swift')) {
+      parser = ParserFactory.getParser('swift');
+    } else if (filePath.endsWith('.kt')) {
+      parser = ParserFactory.getParser('kotlin');
+    } else {
+      logger.warn(`Unsupported file type for function listing: ${filePath}`);
+      return [];
+    }
     const codeChunks = await parser.parseFile(filePath);
     return codeChunks
       .filter((chunk) => chunk.type.includes('function'))
@@ -110,7 +136,15 @@ export class AnalysisService {
     functionSignature: string,
   ): Promise<{ content: string } | null> {
     logger.info(`AnalysisService: Getting function chunk for ${functionSignature} in ${filePath}`);
-    const parser = ParserFactory.getParser('swift'); // Swiftパーサーを取得
+    let parser: IParser;
+    if (filePath.endsWith('.swift')) {
+      parser = ParserFactory.getParser('swift');
+    } else if (filePath.endsWith('.kt')) {
+      parser = ParserFactory.getParser('kotlin');
+    } else {
+      logger.warn(`Unsupported file type for function chunk retrieval: ${filePath}`);
+      return null;
+    }
     const codeChunks = await parser.parseFile(filePath);
     const targetFunction = codeChunks.find((chunk) => chunk.signature === functionSignature);
 

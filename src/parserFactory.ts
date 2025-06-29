@@ -1,6 +1,8 @@
 // src/parserFactory.ts
 
 import { IParser } from './interfaces/parser.js';
+import { SwiftParser } from './parser.js';
+import { KotlinParser } from './kotlinParser.js';
 
 export class ParserFactory {
   private static parsers: Map<string, IParser> = new Map();
@@ -20,3 +22,7 @@ export class ParserFactory {
     return parser;
   }
 }
+
+// 初期パーサーの登録
+ParserFactory.registerParser('swift', new SwiftParser());
+ParserFactory.registerParser('kotlin', new KotlinParser());
