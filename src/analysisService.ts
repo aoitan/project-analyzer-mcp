@@ -1,17 +1,15 @@
-import { SwiftParser } from './parser.js';
-import { CodeChunk } from './types.js';
+import { CodeChunk, IParser } from './interfaces/parser.js';
+import { ParserFactory } from './parserFactory.js';
 import * as fs from 'fs/promises';
 import { glob } from 'glob';
 import * as path from 'path';
 import logger from './utils/logger.js';
 
 export class AnalysisService {
-  private swiftParser: SwiftParser;
   private parsedProjects: Map<string, CodeChunk[]>; // Cache for parsed projects
   private chunksDir: string;
 
   constructor(chunksDir: string = './data/chunks') {
-    this.swiftParser = new SwiftParser();
     this.parsedProjects = new Map<string, CodeChunk[]>();
     this.chunksDir = chunksDir;
   }
@@ -26,7 +24,8 @@ export class AnalysisService {
     const allChunks: CodeChunk[] = [];
 
     for (const file of files) {
-      const chunks = await this.swiftParser.parseFile(file);
+      const parser = ParserFactory.getParser('swift'); // Swiftパーサーを取得
+      const chunks = await parser.parseFile(file);
       for (const chunk of chunks) {
         allChunks.push(chunk);
         await this.saveChunk(chunk);
@@ -62,7 +61,8 @@ export class AnalysisService {
     filePath: string,
     functionQuery: string,
   ): Promise<{ id: string; signature: string }[]> {
-    const codeChunks = await this.swiftParser.parseFile(filePath);
+    const parser = ParserFactory.getParser('swift'); // Swiftパーサーを取得
+    const codeChunks = await parser.parseFile(filePath);
     const matchingFunctions = codeChunks.filter(
       (chunk) =>
         chunk.type.includes('function') &&
@@ -95,7 +95,8 @@ export class AnalysisService {
 
   async listFunctionsInFile(filePath: string): Promise<{ signature: string }[]> {
     logger.info(`AnalysisService: Listing functions in file: ${filePath}`);
-    const codeChunks = await this.swiftParser.parseFile(filePath);
+    const parser = ParserFactory.getParser('swift'); // Swiftパーサーを取得
+    const codeChunks = await parser.parseFile(filePath);
     return codeChunks
       .filter((chunk) => chunk.type.includes('function'))
       .map((chunk) => ({
@@ -109,7 +110,8 @@ export class AnalysisService {
     functionSignature: string,
   ): Promise<{ content: string } | null> {
     logger.info(`AnalysisService: Getting function chunk for ${functionSignature} in ${filePath}`);
-    const codeChunks = await this.swiftParser.parseFile(filePath);
+    const parser = ParserFactory.getParser('swift'); // Swiftパーサーを取得
+    const codeChunks = await parser.parseFile(filePath);
     const targetFunction = codeChunks.find((chunk) => chunk.signature === functionSignature);
 
     if (targetFunction) {

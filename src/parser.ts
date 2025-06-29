@@ -40,8 +40,9 @@ const defaultExec: ExecFunction = (command: string, args: string[]) => {
 const defaultReadFile = fsp.readFile;
 
 import { CodeChunk, SourceKittenStructure } from './types.js';
+import { IParser, CodeChunk } from './interfaces/parser.js';
 
-export class SwiftParser {
+export class SwiftParser implements IParser {
   private exec: ExecFunction;
   private readFile: ReadFileFunction;
 
