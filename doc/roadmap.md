@@ -29,6 +29,16 @@
 
 ### 2.2. Kotlinパーサーの実装 (詳細は [Kotlin対応の現状とロードマップ](kotlin_support.md) を参照)
 
+- **計画:**
+  1.  `KotlinParser` の機能強化（外部ツール連携）
+      - 関連Issue: `kotlin_parser_feature_enhancement_external_tool_integration.md`
+  2.  `KotlinParser` の機能強化（`CodeChunk` への正確な変換）
+      - 関連Issue: `kotlin_parser_feature_enhancement_codechunk_conversion.md`
+  3.  Kotlin対応のテストカバレッジ向上
+      - 関連Issue: `kotlin_support_test_coverage_improvement.md`
+  4.  Kotlin対応のパフォーマンス最適化
+      - 関連Issue: `kotlin_support_performance_optimization.md`
+
 ## フェーズ3: 高度なコード理解機能 (長期)
 
 ### 3.1. 依存関係グラフの解析と保持
