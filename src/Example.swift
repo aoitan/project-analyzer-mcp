@@ -42,6 +42,7 @@ struct MyStruct {
     }
 }
 
+
 /// グローバル関数の例です。
 func globalFunction(message: String) {
     print("グローバル: \(message)")
@@ -53,7 +54,7 @@ func globalFunction(message: String) {
 /// これはテスト目的の非常に大きく複雑な関数です。
 /// 複数の行にまたがり、様々な制御フロー文、コメント、
 /// およびネストされた構造を含み、現実世界のシナリオをシミュレートします。
-/// 目的は、`get_function_chunk` ツールが大きな関数の
+/// 目的は、\`get_function_chunk\` ツールが大きな関数の
 /// 完全なコード内容を抽出する能力をテストすることです。
 func largeFunction(input: [String: Any]) -> String {
     var result = ""
@@ -93,7 +94,8 @@ func largeFunction(input: [String: Any]) -> String {
     for i in 0..<10 {
         if i % 2 == 0 {
             result += "偶数: \(i)\n"
-        } else {
+        }
+        else {
             result += "奇数: \(i)\n"
         }
     }
@@ -124,7 +126,6 @@ func largeFunction(input: [String: Any]) -> String {
 }
 
 // --- largeFunction 定義の終了 ---
-
 
 // 使用例:
 let myInstance = MyClass(name: "アリス", age: 30)
