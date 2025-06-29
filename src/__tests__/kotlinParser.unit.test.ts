@@ -39,6 +39,7 @@ describe('KotlinParser (Unit Tests)', () => {
             signature: 'fun main()',
             type: 'source.lang.kotlin.decl.function.free',
             content: 'fun main() {\n    println("Hello, Kotlin!")\n}',
+            filePath: filePath,
             startLine: 1,
             endLine: 3,
             offset: 0,

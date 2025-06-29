@@ -59,10 +59,8 @@ export class KotlinParser implements IParser {
     try {
       // 実際には kotlin-language-server などを呼び出す
       const { stdout } = await this.exec('kotlin-language-server', ['--file', filePath]);
-      const parsedOutput = JSON.parse(stdout);
+      const parsedOutput: any[] = JSON.parse(stdout);
 
-      // ここでは、kotlin-language-server の出力形式を CodeChunk に変換するロジックを実装します。
-      // 今回はダミーの変換ロジックとします。
       const chunks: CodeChunk[] = parsedOutput.map((item: any) => ({
         id: item.id || item.name,
         name: item.name,
