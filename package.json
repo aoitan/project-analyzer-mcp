@@ -11,7 +11,8 @@
     "start": "npm run build && node dist/index.js",
     "build": "tsc",
     "format": "prettier --write \"**/*.{ts,tsx,js,jsx,json,md}\"",
-    "render-diagrams": "java -jar tools/plantuml/plantuml.jar -tsvg doc/diagrams/*.puml"
+    "render-diagrams": "java -jar tools/plantuml/plantuml.jar -tsvg doc/diagrams/*.puml",
+    "inspector-start": "npx @modelcontextprotocol/inspector npm start"
   },
   "keywords": [],
   "author": "",
