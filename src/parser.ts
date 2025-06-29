@@ -1,12 +1,41 @@
-import { exec as cp_exec } from 'child_process';
-import { promisify } from 'util';
+import { spawn } from 'child_process';
 import * as fs from 'fs';
 import * as fsp from 'fs/promises';
 
-type ExecFunction = (command: string) => Promise<{ stdout: string; stderr: string }>;
+type ExecFunction = (
+  command: string,
+  args: string[],
+) => Promise<{ stdout: string; stderr: string }>;
 type ReadFileFunction = typeof fsp.readFile;
 
-const defaultExec: ExecFunction = promisify(cp_exec);
+const defaultExec: ExecFunction = (command: string, args: string[]) => {
+  return new Promise((resolve, reject) => {
+    let stdout = '';
+    let stderr = '';
+    const child = spawn(command, args);
+
+    child.stdout.on('data', (data) => {
+      stdout += data.toString();
+    });
+
+    child.stderr.on('data', (data) => {
+      stderr += data.toString();
+    });
+
+    child.on('close', (code) => {
+      if (code !== 0) {
+        reject(new Error(`Command failed with code ${code}: ${stderr}`));
+      } else {
+        resolve({ stdout, stderr });
+      }
+    });
+
+    child.on('error', (err) => {
+      reject(err);
+    });
+  });
+};
+
 const defaultReadFile = fsp.readFile;
 
 import { CodeChunk, SourceKittenStructure } from './types.js';
@@ -25,7 +54,8 @@ export class SwiftParser {
 
   async parseFile(filePath: string): Promise<CodeChunk[]> {
     try {
-      const { stdout } = await this.exec(`sourcekitten structure --file ${filePath}`);
+      // sourcekitten structure --file ${filePath} を spawn の引数に分割
+      const { stdout } = await this.exec('sourcekitten', ['structure', '--file', filePath]);
 
       const sourceKittenOutput = JSON.parse(stdout);
 

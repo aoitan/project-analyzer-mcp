@@ -5,14 +5,32 @@ import { vi } from 'vitest';
 
 // Mock child_process.exec and fs.readFile
 vi.mock('child_process', () => ({
-  exec: vi.fn(),
+  exec: vi.fn(), // exec はモックのままにしておく
+  spawn: vi.fn(() => ({
+    // spawn のモック実装
+    stdout: {
+      on: vi.fn((event, callback) => {
+        if (event === 'data') {
+          callback(JSON.stringify(mockSourceKittenOutput));
+        }
+      }),
+    },
+    stderr: { on: vi.fn() },
+    on: vi.fn((event, callback) => {
+      if (event === 'close') {
+        callback(0); // 成功を示すコード
+      } else if (event === 'error') {
+        // エラーテストのために必要に応じて実装
+      }
+    }),
+  })),
 }));
 
 vi.mock('fs/promises', () => ({
   readFile: vi.fn(),
 }));
 
-const mockExec = vi.mocked(exec);
+const mockExec = vi.mocked(exec); // exec のモックはそのまま
 const mockReadFile = vi.mocked(fs.readFile);
 
 describe('SwiftParser (Unit Tests)', () => {
@@ -20,15 +38,27 @@ describe('SwiftParser (Unit Tests)', () => {
 
   beforeEach(() => {
     console.log('[Test] beforeEach: Start');
-    parser = new SwiftParser(mockExec, mockReadFile);
+    parser = new SwiftParser(
+      vi.fn((command, args) => {
+        // ここで spawn の引数形式を模倣
+        if (command === 'sourcekitten' && args[0] === 'structure') {
+          return Promise.resolve({ stdout: JSON.stringify(mockSourceKittenOutput), stderr: '' });
+        } else if (command === 'sourcekitten' && args[0] === '--file') {
+          // getFunctionContent のテスト用
+          return Promise.resolve({ stdout: JSON.stringify(mockSourceKittenOutput), stderr: '' });
+        }
+        return Promise.reject(new Error('Unknown command'));
+      }),
+      mockReadFile,
+    );
     vi.clearAllMocks();
     mockReadFile.mockResolvedValue(mockFileContent);
-    mockExec.mockResolvedValue({ stdout: mockSourceKittenOutput, stderr: '' });
+    // mockExec.mockResolvedValue({ stdout: mockSourceKittenOutput, stderr: '' }); // exec はもう使わない
     console.log('[Test] beforeEach: End');
   });
 
   // Mock SourceKitten's successful output for a dummy Swift file
-  const mockSourceKittenOutput = JSON.stringify({
+  const mockSourceKittenOutput = {
     'key.diagnostic_stage': 'source.diagnostic.stage.swift.parse',
     'key.length': 105,
     'key.offset': 0,
@@ -89,7 +119,7 @@ describe('SwiftParser (Unit Tests)', () => {
         ],
       },
     ],
-  });
+  };
 
   const mockFileContent = `func dummyFunction1(param: String) -> Int {
     return 1
@@ -105,13 +135,14 @@ func dummyFunction2() {
 }`;
 
   it('parseFile should return CodeChunk array on success', async () => {
-    mockExec.mockResolvedValue({ stdout: mockSourceKittenOutput, stderr: '' });
+    // mockExec.mockResolvedValue({ stdout: mockSourceKittenOutput, stderr: '' }); // exec はもう使わない
     mockReadFile.mockResolvedValue(mockFileContent);
 
     const filePath = '/path/to/test.swift';
     const chunks = await parser.parseFile(filePath);
 
-    expect(mockExec).toHaveBeenCalledWith(`sourcekitten structure --file ${filePath}`);
+    // expect(mockExec).toHaveBeenCalledWith(`sourcekitten structure --file ${filePath}`); // exec はもう使わない
+    expect(parser['exec']).toHaveBeenCalledWith('sourcekitten', ['structure', '--file', filePath]);
     expect(chunks).toHaveLength(2);
     expect(chunks[0].id).toBe('func dummyFunction1(param:) -> Int');
     expect(chunks[0].signature).toBe('func dummyFunction1(param:) -> Int');
@@ -130,29 +161,58 @@ func dummyFunction2() {
   });
 
   it('parseFile should return empty array on SourceKitten error', async () => {
-    mockExec.mockRejectedValue(new Error('SourceKitten command failed'));
+    // mockExec.mockRejectedValue(new Error('SourceKitten command failed')); // exec はもう使わない
+    parser = new SwiftParser(
+      vi.fn((command, args) => {
+        if (command === 'sourcekitten' && args[0] === 'structure') {
+          return Promise.reject(new Error('SourceKitten command failed'));
+        }
+        return Promise.reject(new Error('Unknown command'));
+      }),
+      mockReadFile,
+    );
 
     const filePath = '/path/to/error.swift';
     const chunks = await parser.parseFile(filePath);
 
-    expect(mockExec).toHaveBeenCalledWith(`sourcekitten structure --file ${filePath}`);
+    // expect(mockExec).toHaveBeenCalledWith(`sourcekitten structure --file ${filePath}`); // exec はもう使わない
+    expect(parser['exec']).toHaveBeenCalledWith('sourcekitten', ['structure', '--file', filePath]);
     expect(chunks).toEqual([]);
     console.log('[Test] parseFile error test: End');
   });
 
   it('parseFile should return empty array on SourceKitten exec error', async () => {
-    mockExec.mockRejectedValue(new Error('SourceKitten command failed'));
+    // mockExec.mockRejectedValue(new Error('SourceKitten command failed')); // exec はもう使わない
+    parser = new SwiftParser(
+      vi.fn((command, args) => {
+        if (command === 'sourcekitten' && args[0] === 'structure') {
+          return Promise.reject(new Error('SourceKitten command failed'));
+        }
+        return Promise.reject(new Error('Unknown command'));
+      }),
+      mockReadFile,
+    );
 
     const filePath = '/path/to/exec_error.swift';
     const chunks = await parser.parseFile(filePath);
 
-    expect(mockExec).toHaveBeenCalledWith(`sourcekitten structure --file ${filePath}`);
+    // expect(mockExec).toHaveBeenCalledWith(`sourcekitten structure --file ${filePath}`); // exec はもう使わない
+    expect(parser['exec']).toHaveBeenCalledWith('sourcekitten', ['structure', '--file', filePath]);
     expect(chunks).toEqual([]);
   });
 
   it('getFunctionContent should return null on SourceKitten exec error', async () => {
-    mockExec.mockRejectedValue(new Error('SourceKitten command failed'));
+    // mockExec.mockRejectedValue(new Error('SourceKitten command failed')); // exec はもう使わない
     mockReadFile.mockRejectedValue(new Error('File read failed'));
+    parser = new SwiftParser(
+      vi.fn((command, args) => {
+        if (command === 'sourcekitten' && args[0] === 'structure') {
+          return Promise.reject(new Error('SourceKitten command failed'));
+        }
+        return Promise.reject(new Error('Unknown command'));
+      }),
+      mockReadFile,
+    );
 
     const filePath = '/path/to/exec_error.swift';
     const content = await parser.getFunctionContent(filePath, {
