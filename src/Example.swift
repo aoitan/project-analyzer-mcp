@@ -47,6 +47,9 @@ func globalFunction(message: String) {
     print("Global: \(message)")
 }
 
+
+// --- Start of largeFunction definition ---
+
 /// This is a very large and complex function for testing purposes.
 /// It spans multiple lines and contains various control flow statements,
 /// comments, and nested structures to simulate a real-world scenario.
@@ -82,8 +85,7 @@ func largeFunction(input: [String: Any]) -> String {
         for (key, value) in data {
             result += "Data - \(key): \(value)\n"
         }
-    }
-} else {
+    } else {
         result += "No additional data.\n"
     }
 
@@ -120,6 +122,9 @@ func largeFunction(input: [String: Any]) -> String {
 
     return result
 }
+
+// --- End of largeFunction definition ---
+
 
 // Example usage:
 let myInstance = MyClass(name: "Alice", age: 30)
