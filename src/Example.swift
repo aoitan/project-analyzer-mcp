@@ -1,8 +1,8 @@
-// This is an example Swift file for testing purposes.
+// これはテスト目的のSwiftファイルの例です。
 
 import Foundation
 
-/// A simple class to demonstrate analysis.
+/// 解析をデモンストレーションするためのシンプルなクラスです。
 class MyClass {
     var name: String
     private var age: Int
@@ -12,28 +12,28 @@ class MyClass {
         self.age = age
     }
 
-    /// Greets a person by name.
-    /// - Parameter person: The name of the person to greet.
+    /// 名前で挨拶をします。
+    /// - Parameter person: 挨拶する人の名前。
     func greet(person: String) -> String {
-        let greeting = "Hello, \(person)! My name is \(name)."
+        let greeting = "こんにちは、\(person)さん！私の名前は\(name)です。"
         print(greeting)
         return greeting
     }
 
-    /// Calculates the square of a number.
-    /// - Parameter number: The number to square.
-    /// - Returns: The square of the number.
+    /// 数値の二乗を計算します。
+    /// - Parameter number: 二乗する数値。
+    /// - Returns: 数値の二乗。
     func calculateSquare(number: Int) -> Int {
         return number * number
     }
 
-    /// An internal helper function.
+    /// 内部ヘルパー関数です。
     private func internalHelper() {
-        print("This is an internal helper.")
+        print("これは内部ヘルパーです。")
     }
 }
 
-/// A struct example.
+/// 構造体の例です。
 struct MyStruct {
     var value: Int
 
@@ -42,110 +42,110 @@ struct MyStruct {
     }
 }
 
-/// A global function example.
+/// グローバル関数の例です。
 func globalFunction(message: String) {
-    print("Global: \(message)")
+    print("グローバル: \(message)")
 }
 
 
-// --- Start of largeFunction definition ---
+// --- largeFunction 定義の開始 ---
 
-/// This is a very large and complex function for testing purposes.
-/// It spans multiple lines and contains various control flow statements,
-/// comments, and nested structures to simulate a real-world scenario.
-/// The purpose is to test the `get_function_chunk` tool's ability
-/// to extract the complete code content of large functions.
+/// これはテスト目的の非常に大きく複雑な関数です。
+/// 複数の行にまたがり、様々な制御フロー文、コメント、
+/// およびネストされた構造を含み、現実世界のシナリオをシミュレートします。
+/// 目的は、`get_function_chunk` ツールが大きな関数の
+/// 完全なコード内容を抽出する能力をテストすることです。
 func largeFunction(input: [String: Any]) -> String {
     var result = ""
-    // Check for basic conditions
+    // 基本的な条件をチェック
     if let name = input["name"] as? String, !name.isEmpty {
-        result += "Name: \(name)\n"
+        result += "名前: \(name)\n"
     } else {
-        result += "Name: N/A\n"
+        result += "名前: N/A\n"
     }
 
-    // Process age
+    // 年齢を処理
     if let age = input["age"] as? Int {
         switch age {
         case 0..<13:
-            result += "Age Group: Child\n"
+            result += "年齢層: 子供\n"
         case 13..<20:
-            result += "Age Group: Teenager\n"
+            result += "年齢層: ティーンエイジャー\n"
         case 20..<65:
-            result += "Age Group: Adult\n"
+            result += "年齢層: 大人\n"
         default:
-            result += "Age Group: Senior\n"
+            result += "年齢層: シニア\n"
         }
     } else {
-        result += "Age: Unknown\n"
+        result += "年齢: 不明\n"
     }
 
-    // Handle optional data
+    // オプションデータを処理
     if let data = input["data"] as? [String: Any] {
         for (key, value) in data {
-            result += "Data - \(key): \(value)\n"
+            result += "データ - \(key): \(value)\n"
         }
     } else {
-        result += "No additional data.\n"
+        result += "追加データなし。\n"
     }
 
-    // Simulate some complex calculations or operations
+    // いくつかの複雑な計算や操作をシミュレート
     for i in 0..<10 {
         if i % 2 == 0 {
-            result += "Even number: \(i)\n"
+            result += "偶数: \(i)\n"
         } else {
-            result += "Odd number: \(i)\n"
+            result += "奇数: \(i)\n"
         }
     }
 
-    // Nested closure example
+    // ネストされたクロージャの例
     let processCompletion: (String) -> Void = { message in
-        result += "Completion message: \(message)\n"
+        result += "完了メッセージ: \(message)\n"
     }
-    processCompletion("Task finished")
+    processCompletion("タスク完了")
 
-    // Guard let example
+    // Guard let の例
     guard let status = input["status"] as? String else {
-        result += "Status: Not provided\n"
+        result += "ステータス: 未提供\n"
         return result
     }
-    result += "Status: \(status)\n"
+    result += "ステータス: \(status)\n"
 
-    // Defer statement example
+    // Defer ステートメントの例
     defer {
-        print("Large function execution finished.")
+        print("大規模関数実行終了。")
     }
 
-    // Final summary
-    result += "\n--- Summary ---\n"
-    result += "Processed successfully.\n"
+    // 最終概要
+    result += "\n--- 概要 ---\n"
+    result += "正常に処理されました。\n"
 
     return result
 }
 
-// --- End of largeFunction definition ---
+// --- largeFunction 定義の終了 ---
 
 
-// Example usage:
-let myInstance = MyClass(name: "Alice", age: 30)
-myInstance.greet(person: "Bob")
+// 使用例:
+let myInstance = MyClass(name: "アリス", age: 30)
+myInstance.greet(person: "ボブ")
 let square = myInstance.calculateSquare(number: 5)
-print("Square: \(square)")
+print("二乗: \(square)")
 
 let myStructInstance = MyStruct(value: 10)
 let doubled = myStructInstance.doubleValue()
-print("Doubled: \(doubled)")
+print("2倍: \(doubled)")
 
-globalFunction(message: "Hello from global function!")
+globalFunction(message: "グローバル関数からの挨拶！")
 
 let largeFunctionInput: [String: Any] = [
-    "name": "Test User",
+    "name": "テストユーザー",
     "age": 25,
     "data": [
-        "key1": "value1",
+        "key1": "値1",
         "key2": 123
     ],
-    "status": "Active"
+    "status": "アクティブ"
 ]
 let largeFunctionOutput = largeFunction(input: largeFunctionInput)
 print(largeFunctionOutput)
