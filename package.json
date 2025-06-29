@@ -7,7 +7,7 @@
     "doc": "doc"
   },
   "scripts": {
-    "test": "npm run format && vitest --testTimeout 30000",
+    "test": "npm run format && vitest",
     "start": "npm run build && node dist/index.js",
     "build": "tsc",
     "format": "prettier --write \"**/*.{ts,tsx,js,jsx,json,md}\"",
