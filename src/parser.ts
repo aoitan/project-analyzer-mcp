@@ -92,9 +92,9 @@ export class SwiftParser implements IParser {
             signature = `func ${signature}`;
           }
 
-          const fileContentBuffer = await this.readFile(filePath, 'utf-8');
-          const fileContent = fileContentBuffer.toString();
-          const content = fileContent.substring(
+          const fileContentBuffer = await this.readFile(filePath);
+          const content = fileContentBuffer.toString(
+            'utf8',
             item['key.offset'] || 0,
             (item['key.offset'] || 0) + (item['key.length'] || 0),
           );
@@ -104,7 +104,7 @@ export class SwiftParser implements IParser {
             type: item['key.kind'],
             signature: signature,
             id: signature,
-            content: content, // trim() を削除
+            content: content,
             filePath: filePath,
             startLine: startLine,
             endLine: endLine,
@@ -124,9 +124,8 @@ export class SwiftParser implements IParser {
 
   private async getLineNumber(filePath: string, offset: number): Promise<number> {
     try {
-      const fileContentBuffer = await this.readFile(filePath, 'utf-8');
-      const fileContent = fileContentBuffer.toString();
-      const textUntilOffset = fileContent.slice(0, offset);
+      const fileContentBuffer = await this.readFile(filePath);
+      const textUntilOffset = fileContentBuffer.toString('utf8', 0, offset);
       const newlines = textUntilOffset.match(/\r\n|\n|\r/g);
       const lineNumber = newlines ? newlines.length + 1 : 1;
 
@@ -139,19 +138,20 @@ export class SwiftParser implements IParser {
 
   async getFunctionContent(filePath: string, targetFunction: CodeChunk): Promise<string | null> {
     try {
-      const fileContentBuffer = await this.readFile(filePath, 'utf-8');
-      const fileContent = fileContentBuffer.toString();
+      const fileContentBuffer = await this.readFile(filePath);
 
       if (
         targetFunction &&
         targetFunction.offset !== undefined &&
         targetFunction.length !== undefined
       ) {
-        const bodyContent = fileContent
-          .substring(targetFunction.offset, targetFunction.offset + targetFunction.length)
-          .trim();
+        const bodyContent = fileContentBuffer.toString(
+          'utf8',
+          targetFunction.offset,
+          targetFunction.offset + targetFunction.length,
+        );
 
-        return bodyContent;
+        return bodyContent.trim();
       }
 
       return null;
