@@ -90,6 +90,7 @@ AnalysisService --> KnowledgeGraph : Stores Knowledge Graph (Future)
 - **役割**: `IParser` インターフェースを実装し、外部の言語固有の解析ツールと連携して、その出力を標準化された `CodeChunk` 形式に変換する責任を負います。
 - **責任**:
   - 言語固有の解析ツール（SourceKittenなど）を実行します。具体的なツールについては、[Swiftコード解析の詳細](swift_parsing_details.md)を参照してください。
+  - Kotlinコードの解析については、[Kotlin対応の現状とロードマップ](kotlin_support.md)を参照してください。
   - 解析ツールからの生出力を `CodeChunk` オブジェクトに変換し、関連するメタデータ（名前、型、内容、行番号、依存関係）を抽出します。`CodeChunk` の定義は `src/interfaces/parser.ts` にあります。
 
 ### 4.5. ローカルストレージ
