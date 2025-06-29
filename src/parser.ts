@@ -1,3 +1,5 @@
+import { spawn } from 'child_process';
+import * as fs from 'fs';
 import * as fsp from 'fs/promises';
 import logger from './utils/logger.js';
 
@@ -39,7 +41,7 @@ const defaultExec: ExecFunction = (command: string, args: string[]) => {
 
 const defaultReadFile = fsp.readFile;
 
-import { CodeChunk, SourceKittenStructure } from './types.js';
+import { SourceKittenStructure } from './types.js';
 import { IParser, CodeChunk } from './interfaces/parser.js';
 
 export class SwiftParser implements IParser {

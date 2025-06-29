@@ -1,3 +1,5 @@
+import { CodeChunk } from './interfaces/parser.js';
+
 // src/types.ts
 
 // 依存関係（簡易版）を保持するマップ
