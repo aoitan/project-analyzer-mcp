@@ -3,6 +3,7 @@ import { CodeChunk } from './types.js';
 import * as fs from 'fs/promises';
 import { glob } from 'glob';
 import * as path from 'path';
+import logger from './utils/logger.js';
 
 export class AnalysisService {
   private swiftParser: SwiftParser;
@@ -20,7 +21,7 @@ export class AnalysisService {
   }
 
   async analyzeProject(projectPath: string): Promise<void> {
-    console.log(`AnalysisService: Analyzing project: ${projectPath}`);
+    logger.info(`AnalysisService: Analyzing project: ${projectPath}`);
     const files = await this.getSwiftFiles(projectPath);
     const allChunks: CodeChunk[] = [];
 
@@ -35,7 +36,7 @@ export class AnalysisService {
   }
 
   async getChunk(chunkId: string): Promise<{ content: string } | null> {
-    console.log(`AnalysisService: Getting chunk: ${chunkId}`);
+    logger.info(`AnalysisService: Getting chunk: ${chunkId}`);
     // Try to get from cache first
     for (const projectChunks of this.parsedProjects.values()) {
       const cachedChunk = projectChunks.find((chunk) => chunk.id === chunkId);
@@ -75,7 +76,7 @@ export class AnalysisService {
     const chunkFilePath = `${this.chunksDir}/${safeChunkId}.json`;
     await fs.mkdir(this.chunksDir, { recursive: true });
     await fs.writeFile(chunkFilePath, JSON.stringify(chunk, null, 2));
-    console.log(`Saved chunk: ${chunk.id} to ${chunkFilePath}`);
+    logger.info(`Saved chunk: ${chunk.id} to ${chunkFilePath}`);
   }
 
   private async loadChunk(chunkId: string): Promise<{ content: string } | null> {
@@ -84,16 +85,16 @@ export class AnalysisService {
     try {
       const fileContent = await fs.readFile(chunkFilePath, 'utf-8');
       const chunk = JSON.parse(fileContent);
-      console.log(`Loaded chunk: ${chunk.id} from ${chunkFilePath}`);
+      logger.info(`Loaded chunk: ${chunk.id} from ${chunkFilePath}`);
       return { content: chunk.content };
     } catch (error) {
-      console.error(`Error loading chunk ${chunkId}: ${error}`);
+      logger.error(`Error loading chunk ${chunkId}: ${error}`);
       return null;
     }
   }
 
   async listFunctionsInFile(filePath: string): Promise<{ signature: string }[]> {
-    console.log(`AnalysisService: Listing functions in file: ${filePath}`);
+    logger.info(`AnalysisService: Listing functions in file: ${filePath}`);
     const codeChunks = await this.swiftParser.parseFile(filePath);
     return codeChunks
       .filter((chunk) => chunk.type.includes('function'))
@@ -107,7 +108,7 @@ export class AnalysisService {
     filePath: string,
     functionSignature: string,
   ): Promise<{ content: string } | null> {
-    console.log(`AnalysisService: Getting function chunk for ${functionSignature} in ${filePath}`);
+    logger.info(`AnalysisService: Getting function chunk for ${functionSignature} in ${filePath}`);
     const codeChunks = await this.swiftParser.parseFile(filePath);
     const targetFunction = codeChunks.find((chunk) => chunk.signature === functionSignature);
 

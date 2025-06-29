@@ -1,6 +1,7 @@
 import { createMcpServer } from '../server.js';
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { vi } from 'vitest';
+import { AnalysisService } from '../analysisService.js'; // AnalysisService をインポート
 
 // McpServer の registerTool メソッドの呼び出しを記録するためのモック
 const mockRegisteredTools: any[] = [];
@@ -17,6 +18,69 @@ vi.mock('@modelcontextprotocol/sdk/server/mcp.js', () => ({
     // テストが getTools() を呼び出すため、モックされた getTools() を提供します。
     // これは mockRegisteredTools の内容を返します。
     getTools: vi.fn(() => mockRegisteredTools),
+  })),
+}));
+
+// AnalysisService をモック
+vi.mock('../analysisService.js', () => ({
+  AnalysisService: vi.fn().mockImplementation(() => ({
+    analyzeProject: vi.fn(async (projectPath: string) => {
+      // analyzeProject が呼ばれたときに、ダミーのチャンクを保存したかのように振る舞う
+      // 実際にはファイルシステム操作は行わない
+      console.log(`Mock AnalysisService: Analyzing project: ${projectPath}`);
+    }),
+    getChunk: vi.fn(async (chunkId: string) => {
+      // getChunk が呼ばれたときに、ダミーのチャンクを返す
+      if (chunkId === 'func dummyFunction1(param:) -> Int') {
+        return { content: 'func dummyFunction1(param: String) -> Int {\n    return 1\n}' };
+      }
+      return null;
+    }),
+    listFunctionsInFile: vi.fn(async (filePath: string) => {
+      // listFunctionsInFile が呼ばれたときに、ダミーの関数リストを返す
+      if (filePath === '/Users/ma-yabushita/00_work/study/ai/toy/src/__tests__/dummy.swift') {
+        return [
+          {
+            id: 'func dummyFunction1(param:) -> Int',
+            signature: 'func dummyFunction1(param:) -> Int',
+          },
+          { id: 'func dummyFunction2()', signature: 'func dummyFunction2()' },
+        ];
+      }
+      return [];
+    }),
+    getFunctionChunk: vi.fn(async (filePath: string, functionSignature: string) => {
+      // getFunctionChunk が呼ばれたときに、ダミーの関数チャンクを返す
+      if (
+        filePath === '/Users/ma-yabushita/00_work/study/ai/toy/src/__tests__/dummy.swift' &&
+        functionSignature === 'func dummyFunction1(param:) -> Int'
+      ) {
+        return { content: 'func dummyFunction1(param: String) -> Int {\n    return 1\n}' };
+      }
+      return null;
+    }),
+    findFiles: vi.fn(async (pattern: string) => {
+      // findFiles が呼ばれたときに、ダミーのファイルリストを返す
+      if (pattern === 'src/__tests__/dummy.swift') {
+        return ['/Users/ma-yabushita/00_work/study/ai/toy/src/__tests__/dummy.swift'];
+      }
+      return [];
+    }),
+    findFunctions: vi.fn(async (filePath: string, functionQuery: string) => {
+      // findFunctions が呼ばれたときに、ダミーの関数リストを返す
+      if (
+        filePath === '/Users/ma-yabushita/00_work/study/ai/toy/src/__tests__/dummy.swift' &&
+        functionQuery === 'dummyFunction1'
+      ) {
+        return [
+          {
+            id: 'func dummyFunction1(param:) -> Int',
+            signature: 'func dummyFunction1(param:) -> Int',
+          },
+        ];
+      }
+      return [];
+    }),
   })),
 }));
 
