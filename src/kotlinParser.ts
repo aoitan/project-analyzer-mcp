@@ -61,25 +61,68 @@ export class KotlinParser implements IParser {
       const { stdout } = await this.exec('kotlin-language-server', ['--file', filePath]);
       const parsedOutput: any[] = JSON.parse(stdout);
 
-      const chunks: CodeChunk[] = parsedOutput.map((item: any) => ({
-        id: item.id || item.name,
-        name: item.name,
-        signature: item.signature,
-        type: item.type,
-        content: item.content,
-        filePath: filePath,
-        startLine: item.startLine,
-        endLine: item.endLine,
-        offset: item.offset,
-        length: item.length,
-        calls: item.calls || [],
-      }));
+      const fileContentBuffer = await this.readFile(filePath);
+
+      const chunks: CodeChunk[] = await Promise.all(
+        parsedOutput.map(async (item: any) => {
+          const startLine = await this.getLineNumber(filePath, item['key.offset']);
+          const endLine = await this.getLineNumber(
+            filePath,
+            item['key.offset'] + item['key.length'],
+          );
+
+          let signature = item['key.name'] || '';
+          if (item['key.kind'].includes('function')) {
+            // 関数名に引数リストが含まれていない場合、空の引数リストを追加
+            if (!signature.includes('(')) {
+              signature += '()';
+            }
+            signature = `fun ${signature}: ${item['key.typename']}`;
+          } else if (item['key.kind'].includes('class')) {
+            signature = `class ${signature}`;
+          }
+
+          const content = fileContentBuffer.toString(
+            'utf8',
+            item['key.offset'] || 0,
+            (item['key.offset'] || 0) + (item['key.length'] || 0),
+          );
+
+          return {
+            id: signature,
+            name: item['key.name'],
+            signature: signature,
+            type: item['key.kind'],
+            content: content,
+            filePath: filePath,
+            startLine: startLine,
+            endLine: endLine,
+            offset: item['key.offset'] || 0,
+            length: item['key.length'] || 0,
+            calls: item.calls || [],
+          };
+        }),
+      );
 
       logger.info(`Successfully parsed Kotlin file: ${filePath}`);
       return chunks;
     } catch (error) {
       logger.error(`Error parsing Kotlin file ${filePath}: ${error}`);
       return [];
+    }
+  }
+
+  private async getLineNumber(filePath: string, offset: number): Promise<number> {
+    try {
+      const fileContentBuffer = await this.readFile(filePath);
+      const textUntilOffset = fileContentBuffer.toString('utf8', 0, offset);
+      const newlines = textUntilOffset.match(/\r\n|\n|\r/g);
+      const lineNumber = newlines ? newlines.length + 1 : 1;
+
+      return lineNumber;
+    } catch (error) {
+      logger.error(`Error getting line number for ${filePath} at offset ${offset}: ${error}`);
+      return 0; // エラー時は0行目を返すか、適切なエラーハンドリングを行う
     }
   }
 }
