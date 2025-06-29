@@ -3,8 +3,9 @@
 node "LLM/Agent" as LLM
 node "MCP Server" as Server
 node "Analysis Service" as AS
-node "Swift Parser" as SP
-node "SourceKitten" as SK
+node "Parser Factory" as PF
+node "IParser (e.g., SwiftParser)" as Parser
+node "External Language Parser (e.g., SourceKitten)" as ELP
 node "File System" as FS
 node "In-memory Cache" as Cache
 
@@ -14,10 +15,11 @@ Server --> AS : Tool Inputs (JSON)
 AS --> FS : Project Path
 FS --> AS : Swift Files
 
-AS --> SP : File Path
-SP --> SK : File Path
-SK --> SP : SourceKitten Output (JSON)
-SP --> AS : CodeChunk[]
+AS --> PF : Request Parser (Language Type)
+PF --> Parser : Returns Parser Instance
+Parser --> ELP : File Path
+ELP --> Parser : Raw Parser Output (JSON)
+Parser --> AS : CodeChunk[]
 
 AS --> Cache : CodeChunk[]
 AS --> FS : CodeChunk (JSON File)
