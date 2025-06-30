@@ -11,7 +11,7 @@
 ### 現在実装済みの機能
 
 - **MCPサーバー実装**: TypeScriptとNode.jsを使用し、`@modelcontextprotocol/sdk` を活用して構築されています。
-- **コードチャンク化**: Swiftソースファイルを解析し、関数単位でコードチャンクを抽出します。外部ツールとしてSourceKittenを使用しています。
+- **コードチャンク化**: Swiftソースファイルを解析し、関数単位でコードチャンクを抽出します。外部ツールとしてSourceKittenを使用しています。**Kotlinソースファイルの基本的な解析とCodeChunkへの変換もサポートしています。**
   - `getLineNumber` メソッドの正確性を向上させ、`SourceKitten` のオフセット情報から正確な行番号を導出済みです。
 - **ローカルストレージとキャッシュ**: 解析されたコードチャンクは、インメモリキャッシュに保存されるほか、`data/chunks/` ディレクトリにJSONファイルとして永続化されます。
   - `analyzeProject` の `getSwiftFiles` ダミー実装を、指定されたプロジェクトパス内のすべての `.swift` ファイルを再帰的に探索する実際のロジックに置き換え済みです。
@@ -37,6 +37,8 @@
 
 - Node.js (v18以上を推奨)
 - npm
+- Java Development Kit (JDK) v21以上 (Kotlinコード解析のため)
+- Gradle (Kotlin CLIツールのビルドのため)
 
 ### インストール
 
@@ -50,7 +52,15 @@
     npm install
     ```
 3.  SourceKittenをインストールします。（Swiftコード解析のため）
-    - macOSの場合: `brew install sourcekitten`
+    ```bash
+    npm run install-sourcekitten
+    ```
+4.  Kotlin AST JSON出力CLIツールをビルドします。（Kotlinコード解析のため）
+    ```bash
+    cd kotlin-parser-cli
+    ./gradlew shadowJar
+    cd ..
+    ```
 
 ## テストの実行
 
