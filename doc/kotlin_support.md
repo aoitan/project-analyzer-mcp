@@ -34,6 +34,26 @@ Kotlinコードの本格的な解析機能の実現に向けて、以下のス�
   - 外部ツールからの出力を、`CodeChunk` インターフェースに定義された形式（関数名、シグネチャ、型、コード内容、行番号、オフセット、長さ、呼び出し関係など）に正確に変換するロジックを実装します。
   - 特に、関数だけでなく、クラス、プロパティ、変数などのより多様なコード要素を `CodeChunk` として抽出できるように機能を拡張します。
 
+### 2.1.1. Kotlin AST JSON出力CLIツールの開発
+
+- **目的**: Kotlinソースコードをパースし、そのASTをJSON形式で標準出力に出力する独立したCLIツールを開発する。
+- **理由**: `kotlin-language-server` はLSPに特化しており、直接ASTをJSONで出力する機能がないため。また、既存のKotlin ASTライブラリ（Kolasu, Kastreeなど）をNode.jsから直接利用するのが困難なため。
+- **実装ステップ**:
+    - [ ] Kotlinプロジェクトをセットアップし、必要な依存関係（例: `kotlin-compiler-embeddable`、`kotlinx.serialization`）を追加する。
+    - [ ] Kotlin Compiler APIを使用してKotlinソースコードをパースし、ASTを構築するロジックを実装する。
+    - [ ] 構築したASTを `CodeChunk` の要件に合わせたJSON形式に変換するロジックを実装する。
+    - [ ] コマンドライン引数としてKotlinファイルのパスを受け取り、JSON出力を標準出力に書き出すCLIツールとしてパッケージングする（実行可能なJARファイルなど）。
+    - [ ] ツールが正しく動作することを確認するための単体テストを作成する。
+
+### 2.1.2. `KotlinParser` からCLIツールの呼び出しと`CodeChunk`変換
+
+- **目的**: 開発したKotlin AST JSON出力CLIツールを `KotlinParser` から呼び出し、そのJSON出力を `CodeChunk` オブジェクトに変換する。
+- **実装ステップ**:
+    - [ ] `KotlinParser` の `parseFile` メソッド内で、`child_process` を使用してKotlin AST JSON出力CLIツールを実行する。
+    - [ ] CLIツールの標準出力をキャプチャし、JSONをパースする。
+    - [ ] パースしたJSONデータから `CodeChunk` オブジェクトを生成するロジックを実装する。
+    - [ ] エラーハンドリングを強化し、CLIツールの実行失敗や不正なJSON出力に対応する。
+
 ### 2.2. テストカバレッジの向上
 
 - 実際のKotlinコードファイルを使用した統合テストを追加し、`KotlinParser` が正しく機能することを確認します。
