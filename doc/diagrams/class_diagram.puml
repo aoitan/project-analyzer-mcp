@@ -23,7 +23,8 @@ class AnalysisService {
   + getChunk(chunkId: string): Promise<{ content: string } | null>
   + listFunctionsInFile(filePath: string): Promise<{ signature: string }[]>
   + getFunctionChunk(filePath: string, functionSignature: string): Promise<{ content: string } | null>
-  - getSwiftFiles(projectPath: string): Promise<string[]>
+  + findFiles(pattern: string): Promise<string[]>
+  + findFunctions(filePath: string, functionQuery: string): Promise<{ id: string; signature: string }[]>
   - saveChunk(chunk: CodeChunk): Promise<void>
   - loadChunk(chunkId: string): Promise<{ content: string } | null>
   - toSafeFileName(name: string): string
@@ -32,7 +33,12 @@ class AnalysisService {
 class SwiftParser {
   + constructor(execFn: ExecFunction, readFileFn: ReadFileFunction)
   + parseFile(filePath: string): Promise<CodeChunk[]>
-  + getFunctionContent(filePath: string, functionSignature: string): Promise<string | null>
+  - getLineNumber(filePath: string, offset: number): Promise<number>
+}
+
+class KotlinParser {
+  + constructor(execFn: ExecFunction, readFileFn: ReadFileFunction)
+  + parseFile(filePath: string): Promise<CodeChunk[]>
   - getLineNumber(filePath: string, offset: number): Promise<number>
 }
 
@@ -55,7 +61,9 @@ McpServer ..> AnalysisService : uses
 AnalysisService ..> ParserFactory : uses
 ParserFactory ..> IParser : <<creates>>
 SwiftParser .up.|> IParser : <<implements>>
+KotlinParser .up.|> IParser : <<implements>>
 AnalysisService --> CodeChunk : creates
 SwiftParser --> CodeChunk : creates
+KotlinParser --> CodeChunk : creates
 
 @enduml

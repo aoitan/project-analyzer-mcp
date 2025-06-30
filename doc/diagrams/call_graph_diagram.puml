@@ -6,10 +6,10 @@
 (callTool) --> (getChunk)
 (callTool) --> (listFunctionsInFile)
 (callTool) --> (getFunctionChunk)
+(callTool) --> (findFile)
+(callTool) --> (findFunction)
 
-(analyzeProject) --> (getSwiftFiles)
 (analyzeProject) --> (parseFile)
-
 (analyzeProject) --> (saveChunk)
 
 (getChunk) --> (loadChunk)
@@ -17,15 +17,15 @@
 (listFunctionsInFile) --> (parseFile)
 
 (getFunctionChunk) --> (parseFile)
-(getFunctionChunk) --> (getFunctionContent)
+
+(findFile) --> (glob)
+
+(findFunction) --> (parseFile)
 
 (parseFile) --> (execPromise)
 (parseFile) --> (getLineNumber)
 
 (getLineNumber) --> (fs.readFile)
-
-(getFunctionContent) --> (fs.readFile)
-
 
 (saveChunk) --> (fs.mkdir)
 (saveChunk) --> (fs.writeFile)

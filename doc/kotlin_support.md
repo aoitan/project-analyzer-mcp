@@ -12,27 +12,19 @@
 - **`KotlinParser` の実装**:
   - `IParser` インターフェースを実装する `KotlinParser` クラスが追加されました。
   - この `KotlinParser` は `ParserFactory` に登録されており、Kotlinファイル（`.kt` 拡張子）の解析リクエストがあった際に `AnalysisService` から利用されます。
-- **`AnalysisService` との統合**:
-  - `AnalysisService` は、解析対象のファイルの拡張子（`.swift` または `.kt`）に基づいて、`ParserFactory` から適切なパーサー（`SwiftParser` または `KotlinParser`）を取得し、解析を委譲するようになりました。
-
-### 1.1. 現在の制限事項
-
-現在の `KotlinParser` の実装は、**ダミーの解析ロジック**を含んでいます。
-
-- `KotlinParser` の `parseFile` メソッドは、外部コマンドとして `kotlin-language-server` を呼び出すことを想定していますが、現時点ではその出力はモックされており、実際のKotlinコードの構文解析や意味解析は行っていません。
-- 返される `CodeChunk` も、実際のKotlinコードの内容を反映したものではなく、ダミーのデータです。
+- **Kotlin AST JSON出力CLIツールとの連携**:
+  - `KotlinParser` は、外部のKotlin AST JSON出力CLIツール (`kotlin-parser-cli.jar`) を呼び出し、そのJSON出力をパースして `CodeChunk` オブジェクトに変換するようになりました。
+  - これにより、Kotlinコードの基本的な構文解析と、関数やクラスなどの要素の `CodeChunk` への変換が可能です。
 
 ## 2. 今後のロードマップ
 
-Kotlinコードの本格的な解析機能の実現に向けて、以下のステップを計画しています。
+Kotlinコードの本格的な解析機能のさらなる強化に向けて、以下のステップを計画しています。
 
 ### 2.1. `KotlinParser` の機能強化
 
-- **実際の外部ツール連携**:
-  - `KotlinParser` が `kotlin-language-server` や Kotlin Compiler API などの実際の外部ツールを呼び出し、その出力を取得するロジックを実装します。
-- **`CodeChunk` への正確な変換**:
-  - 外部ツールからの出力を、`CodeChunk` インターフェースに定義された形式（関数名、シグネチャ、型、コード内容、行番号、オフセット、長さ、呼び出し関係など）に正確に変換するロジックを実装します。
-  - 特に、関数だけでなく、クラス、プロパティ、変数などのより多様なコード要素を `CodeChunk` として抽出できるように機能を拡張します。
+- **`CodeChunk` への正確な変換のさらなる改善**:
+  - 外部ツールからの出力を、`CodeChunk` インターフェースに定義された形式（関数名、シグネチャ、型、コード内容、行番号、オフセット、長さ、呼び出し関係など）に、より正確に変換するロジックを実装します。
+  - 特に、関数だけでなく、プロパティ、変数などのより多様なコード要素を `CodeChunk` として抽出できるように機能を拡張します。
 
 ### 2.1.1. Kotlin AST JSON出力CLIツールの開発
 

@@ -4,16 +4,17 @@ node "LLM/Agent" as LLM
 node "MCP Server" as Server
 node "Analysis Service" as AS
 node "Parser Factory" as PF
-node "IParser (e.g., SwiftParser)" as Parser
-node "External Language Parser (e.g., SourceKitten)" as ELP
+node "IParser (e.g., SwiftParser, KotlinParser)" as Parser
+node "External Language Parser (e.g., SourceKitten, Kotlin CLI)" as ELP
 node "File System" as FS
 node "In-memory Cache" as Cache
+node "Glob Library" as GL
 
 LLM --> Server : Tool Calls (JSON)
 Server --> AS : Tool Inputs (JSON)
 
-AS --> FS : Project Path
-FS --> AS : Swift Files
+AS --> GL : File Patterns
+GL --> AS : File Paths
 
 AS --> PF : Request Parser (Language Type)
 PF --> Parser : Returns Parser Instance
