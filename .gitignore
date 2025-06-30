@@ -28,3 +28,7 @@ tools/plantuml/plantuml.jar
 
 # local only
 local.*.md
+
+# Kotlin CLI
+kostlin-parser-cli/build/
+kostlin-parser-cli/.gradle/
