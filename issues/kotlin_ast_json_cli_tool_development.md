@@ -18,11 +18,11 @@ Kotlinソースコードをパースし、そのASTをJSON形式で標準出力�
 
 ### 解決方法
 
-- [ ] Kotlinプロジェクトをセットアップし、必要な依存関係（例: `kotlin-compiler-embeddable`、`kotlinx.serialization`）を追加する。
-- [ ] Kotlin Compiler APIを使用してKotlinソースコードをパースし、ASTを構築するロジックを実装する。
-- [ ] 構築したASTを `CodeChunk` の要件に合わせたJSON形式に変換するロジックを実装する。
-- [ ] コマンドライン引数としてKotlinファイルのパスを受け取り、JSON出力を標準出力に書き出すCLIツールとしてパッケージングする（実行可能なJARファイルなど）。
-- [ ] ツールが正しく動作することを確認するための単体テストを作成する。
+- [x] Kotlinプロジェクトをセットアップし、必要な依存関係（例: `kotlin-compiler-embeddable`、`kotlinx.serialization`）を追加する。
+- [x] Kotlin Compiler APIを使用してKotlinソースコードをパースし、ASTを構築するロジックを実装する。
+- [x] 構築したASTを `CodeChunk` の要件に合わせたJSON形式に変換するロジックを実装する。
+- [x] コマンドライン引数としてKotlinファイルのパスを受け取り、JSON出力を標準出力に書き出すCLIツールとしてパッケージングする（実行可能なJARファイルなど）。
+- [x] ツールが正しく動作することを確認するための単体テストを作成する。
 
 ## その他
 

@@ -56,49 +56,51 @@ export class KotlinParser implements IParser {
   }
 
   async parseFile(filePath: string): Promise<CodeChunk[]> {
+    console.log(`parsedFile: start ${filePath}`);
     try {
-      // 実際には kotlin-language-server などを呼び出す
-      const { stdout } = await this.exec('kotlin-language-server', ['--file', filePath]);
-      const parsedOutput: any[] = JSON.parse(stdout);
+      const { stdout } = await this.exec('java', [
+        '-jar',
+        'kotlin-parser-cli/build/libs/kotlin-parser-cli.jar',
+        filePath,
+      ]);
+      const parsedOutput: any = JSON.parse(stdout);
+      console.log(`parsedOutput: ${parsedOutput}`);
 
       const fileContentBuffer = await this.readFile(filePath);
+      console.log(`fileContentBuffer: ${fileContentBuffer}`);
 
       const chunks: CodeChunk[] = await Promise.all(
-        parsedOutput.map(async (item: any) => {
-          const startLine = await this.getLineNumber(filePath, item['key.offset']);
-          const endLine = await this.getLineNumber(
-            filePath,
-            item['key.offset'] + item['key.length'],
-          );
+        parsedOutput.children.map(async (item: any) => {
+          const startLine = item.startLine;
+          const endLine = item.endLine;
 
-          let signature = item['key.name'] || '';
-          if (item['key.kind'].includes('function')) {
-            // 関数名に引数リストが含まれていない場合、空の引数リストを追加
+          let signature = item.name || '';
+          if (item.type === 'function') {
             if (!signature.includes('(')) {
               signature += '()';
             }
-            signature = `fun ${signature}: ${item['key.typename']}`;
-          } else if (item['key.kind'].includes('class')) {
+            signature = `fun ${signature}: ${item.typename || 'Unit'}`;
+          } else if (item.type === 'class') {
             signature = `class ${signature}`;
           }
 
           const content = fileContentBuffer.toString(
             'utf8',
-            item['key.offset'] || 0,
-            (item['key.offset'] || 0) + (item['key.length'] || 0),
+            item.offset || 0,
+            (item.offset || 0) + (item.length || 0),
           );
 
           return {
             id: signature,
-            name: item['key.name'],
+            name: item.name,
             signature: signature,
-            type: item['key.kind'],
+            type: `source.lang.kotlin.decl.${item.type}`,
             content: content,
             filePath: filePath,
             startLine: startLine,
             endLine: endLine,
-            offset: item['key.offset'] || 0,
-            length: item['key.length'] || 0,
+            offset: item.offset || 0,
+            length: item.length || 0,
             calls: item.calls || [],
           };
         }),

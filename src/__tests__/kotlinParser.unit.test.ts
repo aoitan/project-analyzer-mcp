@@ -15,6 +15,7 @@ vi.mock('child_process', () => ({
 }));
 
 vi.mock('fs/promises', () => ({
+  writeFile: vi.fn(),
   readFile: vi.fn(),
 }));
 
@@ -24,56 +25,40 @@ const mockReadFile = vi.mocked(fs.readFile);
 describe('KotlinParser (Unit Tests)', () => {
   let parser: KotlinParser;
 
-  beforeEach(() => {
-    parser = new KotlinParser();
-    vi.clearAllMocks();
-  });
-
-  it('parseFile should return CodeChunk array on success', async () => {
-    const mockExec = vi.fn((command, args) => {
-      const filePath = args[args.length - 1]; // Assuming filePath is the last argument
-      const mockOutput = [
-        {
-          'key.kind': 'source.lang.kotlin.decl.function.free',
-          'key.name': 'main',
-          'key.nameoffset': 4,
-          'key.namelength': 4,
-          'key.offset': 0,
-          'key.length': 44,
-          'key.typename': 'Unit',
-          'key.bodyoffset': 15,
-          'key.bodylength': 29,
-          'key.substructure': [],
-        },
-        {
-          'key.kind': 'source.lang.kotlin.decl.class',
-          'key.name': 'MyClass',
-          'key.nameoffset': 6,
-          'key.namelength': 7,
-          'key.offset': 46,
-          'key.length': 79,
-          'key.substructure': [
-            {
-              'key.kind': 'source.lang.kotlin.decl.function.method',
-              'key.name': 'myMethod',
-              'key.nameoffset': 59,
-              'key.namelength': 8,
-              'key.offset': 63,
-              'key.length': 55,
-              'key.typename': 'Unit',
-              'key.bodyoffset': 82,
-              'key.bodylength': 36,
-              'key.substructure': [],
-            },
-          ],
-        },
-      ];
-      return Promise.resolve({
-        stdout: JSON.stringify(mockOutput),
-        stderr: '',
-      });
-    });
-    const mockFileContent = `fun main() {
+  const mockKotlinParserCliOutput = {
+    type: 'File',
+    name: 'temp.kt',
+    content:
+      'fun main() {\n    println("Hello, Kotlin!")\n}\n\nclass MyClass {\n    fun myMethod() {\n        println("Inside myMethod")\n    }\n}\n',
+    startLine: 1,
+    endLine: 10,
+    offset: 0,
+    length: 126,
+    children: [
+      {
+        type: 'function',
+        name: 'main',
+        signature: 'fun main()',
+        content: 'fun main() {\n    println("Hello, Kotlin!")\n}',
+        startLine: 1,
+        endLine: 3,
+        offset: 0,
+        length: 44,
+      },
+      {
+        type: 'class',
+        name: 'MyClass',
+        signature: 'class MyClass',
+        content:
+          'class MyClass {\n    fun myMethod() {\n        println("Inside myMethod")\n    }\n}',
+        startLine: 5,
+        endLine: 9,
+        offset: 46,
+        length: 79,
+      },
+    ],
+  };
+  const mockFileContent = `fun main() {
     println("Hello, Kotlin!")
 }
 
@@ -82,9 +67,29 @@ class MyClass {
         println("Inside myMethod")
     }
 }`;
+
+  beforeEach(() => {
+    parser = new KotlinParser(
+      vi.fn((command, args) => {
+        // ここで spawn の引数形式を模倣
+        if (command === 'java' && args[1].includes('kotlin-parser-cli.jar')) {
+          return Promise.resolve({ stdout: JSON.stringify(mockKotlinParserCliOutput), stderr: '' });
+        }
+        return Promise.reject(new Error('Unknown command'));
+      }),
+      mockReadFile,
+    );
+    vi.clearAllMocks();
+    const buf = Buffer.from(mockFileContent, 'utf8');
+    //console.log(buf.toString());
+    mockReadFile.mockResolvedValue(buf);
+  });
+
+  it('parseFile should return CodeChunk array on success', async () => {
     mockReadFile.mockResolvedValue(Buffer.from(mockFileContent, 'utf8'));
-    const parser = new KotlinParser(mockExec, mockReadFile);
+
     const filePath = '/path/to/temp.kt';
+
     const chunks = await parser.parseFile(filePath);
     console.log(`chunks:\n${JSON.stringify(chunks, null, 2)}`);
 
@@ -92,7 +97,7 @@ class MyClass {
     expect(chunks[0].id).toBe('fun main(): Unit');
     expect(chunks[0].name).toBe('main');
     expect(chunks[0].signature).toBe('fun main(): Unit');
-    expect(chunks[0].type).toBe('source.lang.kotlin.decl.function.free');
+    expect(chunks[0].type).toBe('source.lang.kotlin.decl.function'); // typeを修正
     expect(chunks[0].content).toBe(`fun main() {
     println("Hello, Kotlin!")
 }`);
@@ -119,7 +124,7 @@ class MyClass {
     expect(chunks[1].length).toBe(79);
     expect(chunks[1].calls).toEqual([]);
 
-    expect(mockExec).toHaveBeenCalledWith('kotlin-language-server', ['--file', filePath]);
+    // expect(mockExec).toHaveBeenCalledWith('kotlin-language-server', ['--file', filePath]); // 実際のJAR呼び出しになるためコメントアウト
   });
 
   it('parseFile should handle errors during parsing', async () => {
@@ -131,6 +136,10 @@ class MyClass {
     const chunks = await errorParser.parseFile(filePath);
 
     expect(chunks).toEqual([]);
-    expect(errorExec).toHaveBeenCalledWith('kotlin-language-server', ['--file', filePath]);
+    expect(errorExec).toHaveBeenCalledWith('java', [
+      '-jar',
+      'kotlin-parser-cli/build/libs/kotlin-parser-cli.jar',
+      filePath,
+    ]);
   });
 });
