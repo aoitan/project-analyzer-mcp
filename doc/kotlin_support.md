@@ -43,7 +43,7 @@ Kotlinコードの本格的な解析機能の実現に向けて、以下のス�
     - [ ] Kotlin Compiler APIを使用してKotlinソースコードをパースし、ASTを構築するロジックを実装する。
     - [ ] 構築したASTを `CodeChunk` の要件に合わせたJSON形式に変換するロジックを実装する。
     - [ ] コマンドライン引数としてKotlinファイルのパスを受け取り、JSON出力を標準出力に書き出すCLIツールとしてパッケージングする（実行可能なJARファイルなど）。
-    - [ ] ツールが正しく動作することを確認するための単体テストを作成する。
+    - [ ] ツールが正しく動作することを確認するための単体テストを作成する。（関連Issue: [add_tests_to_kotlin_parser_cli.md](issues/add_tests_to_kotlin_parser_cli.md)）
 
 ### 2.1.2. `KotlinParser` からCLIツールの呼び出しと`CodeChunk`変換
 
