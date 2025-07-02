@@ -118,7 +118,7 @@ export class SwiftParser implements IParser {
       return functions;
     } catch (error) {
       logger.error(`Error parsing file ${filePath}: ${error}`);
-      return [];
+      throw error; // エラーをスローするように変更
     }
   }
 

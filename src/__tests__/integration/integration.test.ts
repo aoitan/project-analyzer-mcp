@@ -27,25 +27,25 @@ function isJson(str: String): boolean {
 // ヘルパー関数: サーバープロセスを起動し、入出力を制御
 async function startServer(): Promise<{
   serverProcess: ReturnType<typeof spawn>;
-  stdoutBuffer: string;
+  responseMap: Map<string, string>; // Mapに変更
   stderrBuffer: string;
 }> {
   const serverProcess = spawn('node', [SERVER_PATH], {
     stdio: ['pipe', 'pipe', 'pipe'], // stdin, stdout, stderr をパイプで接続
   });
 
-  let stdoutBuffer = '';
+  const responseMap = new Map<string, string>(); // Mapを初期化
   let stderrBuffer = '';
 
   // サーバーが起動するまで少し待つ (時間を増やす)
   await new Promise((resolve) => setTimeout(resolve, 3000)); // 3秒に増やす
 
-  return { serverProcess, stdoutBuffer, stderrBuffer };
+  return { serverProcess, responseMap, stderrBuffer };
 }
 
 describe('MCP Server Integration Test', () => {
   let serverProcess: ReturnType<typeof spawn>;
-  let stdoutBuffer: string;
+  let responseMap: Map<string, string>; // Mapに変更
   let stderrBuffer: string;
 
   const onStdout = (data) => {
@@ -55,12 +55,14 @@ describe('MCP Server Integration Test', () => {
     if (!isJson(response)) {
       // JSONでなかったら読み捨て
       console.log(`skip non json`);
-    } else if (response.includes("result") && response.includes('"id":"initialize_1"')) {
-      // initializationの応答を読み捨て
-      console.log(`initialize message respond`);
     } else {
-      console.log(`stdoutBuffer`);
-      stdoutBuffer = response;
+      const parsedResponse = JSON.parse(response);
+      if (parsedResponse.id) {
+        responseMap.set(parsedResponse.id, response); // idをキーとして格納
+        console.log(`Stored response for id: ${parsedResponse.id}`);
+      } else {
+        console.log(`Response has no id: ${response}`);
+      }
     }
   };
   const onStderr = (data) => {
@@ -88,9 +90,9 @@ fun myKotlinFunction(param: String): Int {
     await fs.rm(CHUNKS_DIR, { recursive: true, force: true });
 
     // サーバーを起動
-    const { serverProcess: sp, stdoutBuffer: sb, stderrBuffer: esb } = await startServer();
+    const { serverProcess: sp, responseMap: rm, stderrBuffer: esb } = await startServer();
     serverProcess = sp;
-    stdoutBuffer = sb;
+    responseMap = rm; // Mapを代入
     stderrBuffer = esb;
 
     serverProcess.stdout.on('data', onStdout);
@@ -129,7 +131,7 @@ fun myKotlinFunction(param: String): Int {
     // analyze_projectメッセージを投げる
     const analyze_project = {
       "jsonrpc": "2.0",
-      "id": 2,
+      "id": "analyze_project_1", // idをユニークにする
       "method": "tools/call",
       "params": {
         "name": "analyze_project",
@@ -145,48 +147,6 @@ fun myKotlinFunction(param: String): Int {
 
   }, 30000);
 
-  // 各テストの前に実行
-//  beforeEach(async () => {
-//    // 各テストの前にサーバーを再起動し、stdout/stderr をクリア
-//    const { serverProcess: sp, stdoutBuffer: sb, stderrBuffer: esb } = await startServer();
-//    serverProcess = sp;
-//    stdoutBuffer = sb;
-//    stderrBuffer = esb;
-//
-//    serverProcess.stdout.on('data', onStdout);
-//
-//    serverProcess.stderr.on('data', onStderr);
-//
-//    // 起動完了を少し待つ
-//    await new Promise((resolve) => setTimeout(resolve, 3000));
-//
-//    // initializeメッセージを投げる
-//    const init = {
-//      "jsonrpc": "2.0",
-//      "id": "initialize_1",
-//      "method": "initialize",
-//      "params": {
-//        "protocolVersion": "2024-11-05",
-//        "capabilities": {
-//          "roots": {
-//            "listChanged": true
-//          },
-//          "sampling": {},
-//          "elicitation": {}
-//        },
-//        "clientInfo": {
-//          "name": "ExampleClient",
-//          "title": "Example Client Display Name",
-//          "version": "1.0.0"
-//        }
-//      }
-//    };
-//    serverProcess.stdin.write(`${JSON.stringify(init)}\n\n`);
-//
-//    // 応答を少し待つ
-//    await new Promise((resolve) => setTimeout(resolve, 500));
-//  }, 10000);
-
   // 全てのテストの後に一度だけ実行
   afterAll(async () => {
     if (serverProcess && !serverProcess.killed) {
@@ -201,7 +161,7 @@ fun myKotlinFunction(param: String): Int {
   it('should respond to analyze_project tool call', async () => {
     const toolCall = {
       "jsonrpc": "2.0",
-      "id": 2,
+      "id": "analyze_project_2", // idをユニークにする
       "method": "tools/call",
       "params": {
         "name": "analyze_project",
@@ -212,33 +172,25 @@ fun myKotlinFunction(param: String): Int {
     };
 
     serverProcess.stdin.write(JSON.stringify(toolCall) + '\n\n');
-//    serverProcess.stdin.end();
 
-    // 少し待つ
+    // 応答を少し待つ
     await new Promise((resolve) => setTimeout(resolve, 5000));
 
-//     await new Promise((resolve) => {
-//       serverProcess.on('close', resolve);
-//     });
-
-    console.log(`stdout: ${stdoutBuffer}\n\n`);
-
-    const response = JSON.parse(stdoutBuffer);
+    const response = JSON.parse(responseMap.get("analyze_project_2") || '{}'); // Mapから取得
     expect(response.result.content[0].text).toContain('Project analysis completed.');
     expect(response.isError).toBeUndefined();
 
     // チャンクファイルが生成されたことを確認
     const swiftChunkPath = path.join(CHUNKS_DIR, 'func_mySwiftFunction_param___-__Int.json');
-    const kotlinChunkPath = path.join(CHUNKS_DIR, 'fun_myKotlinFunction____Unit.json');
+    const kotlinChunkPath = path.join(CHUNKS_DIR, 'fun_myKotlinFunction_param__String___Int.json');
     await expect(fs.access(swiftChunkPath)).resolves.toBeUndefined();
     await expect(fs.access(kotlinChunkPath)).resolves.toBeUndefined();
   }, 30000);
 
   it('should respond to list_functions_in_file tool call for Swift', async () => {
-    // list_functions_in_fileメッセージを投げる
     const list_functions_in_file = {
       "jsonrpc": "2.0",
-      "id": 3,
+      "id": "list_functions_swift_1", // idをユニークにする
       "method": "tools/call",
       "params": {
         "name": "list_functions_in_file",
@@ -252,9 +204,7 @@ fun myKotlinFunction(param: String): Int {
     // 応答を少し待つ
     await new Promise((resolve) => setTimeout(resolve, 1000));
 
-    console.log(`stdout: ${stdoutBuffer}`);
-
-    const response = JSON.parse(stdoutBuffer);
+    const response = JSON.parse(responseMap.get("list_functions_swift_1") || '{}'); // Mapから取得
     const functions = JSON.parse(response.result.content[0].text);
     expect(functions).toEqual(
       expect.arrayContaining([
@@ -266,12 +216,10 @@ fun myKotlinFunction(param: String): Int {
     );
   }, 5000);
 
-  // パーサーがバグっているので一旦スキップ
-  it.skip('should respond to list_functions_in_file tool call for Kotlin', async () => {
-    // list_functions_in_fileメッセージを投げる
+  it('should respond to list_functions_in_file tool call for Kotlin', async () => {
     const list_functions_in_file = {
       "jsonrpc": "2.0",
-      "id": 4,
+      "id": "list_functions_kotlin_1", // idをユニークにする
       "method": "tools/call",
       "params": {
         "name": "list_functions_in_file",
@@ -280,12 +228,14 @@ fun myKotlinFunction(param: String): Int {
         }
       }
     };
-    serverProcess.stdin.write(`${JSON.stringify(list_functions_in_file)}\n\n`);
+    serverProcess.stdin.write(`${JSON.stringify(list_functions_in_file)}
+
+`);
 
     // 応答を少し待つ
-    await new Promise((resolve) => setTimeout(resolve, 1000));
+    await new Promise((resolve) => setTimeout(resolve, 5000));
 
-    const response = JSON.parse(stdoutBuffer);
+    const response = JSON.parse(responseMap.get("list_functions_kotlin_1") || '{}'); // Mapから取得
     const functions = JSON.parse(response.result.content[0].text);
     expect(functions).toEqual(
       expect.arrayContaining([
@@ -295,12 +245,12 @@ fun myKotlinFunction(param: String): Int {
         }),
       ]),
     );
-  }, 3000);
+  }, 6000);
 
   it('should respond to get_function_chunk tool call for Swift', async () => {
     const get_function_chunk = {
       "jsonrpc": "2.0",
-      "id": 5,
+      "id": "get_chunk_swift_1", // idをユニークにする
       "method": "tools/call",
       "params": {
         "name": "get_function_chunk",
@@ -315,16 +265,15 @@ fun myKotlinFunction(param: String): Int {
     // 応答を少し待つ
     await new Promise((resolve) => setTimeout(resolve, 1000));
 
-    const response = JSON.parse(stdoutBuffer);
+    const response = JSON.parse(responseMap.get("get_chunk_swift_1") || '{}'); // Mapから取得
     expect(response.result.content[0].text).toContain('func mySwiftFunction(param: String) -> Int');
     expect(response.isError).toBeUndefined();
   }, 3000);
 
-  // パーサーがバグっているので一旦スキップ
-  it.skip('should respond to get_function_chunk tool call for Kotlin', async () => {
+  it('should respond to get_function_chunk tool call for Kotlin', async () => {
     const get_function_chunk = {
       "jsonrpc": "2.0",
-      "id": 6,
+      "id": "get_chunk_kotlin_1", // idをユニークにする
       "method": "tools/call",
       "params": {
         "name": "get_function_chunk",
@@ -334,20 +283,22 @@ fun myKotlinFunction(param: String): Int {
         }
       }
     };
-    serverProcess.stdin.write(`${JSON.stringify(get_function_chunk)}\n\n`);
+    serverProcess.stdin.write(`${JSON.stringify(get_function_chunk)}
+
+`);
 
     // 応答を少し待つ
-    await new Promise((resolve) => setTimeout(resolve, 1000));
+    await new Promise((resolve) => setTimeout(resolve, 5000));
 
-    const response = JSON.parse(stdoutBuffer);
+    const response = JSON.parse(responseMap.get("get_chunk_kotlin_1") || '{}'); // Mapから取得
     expect(response.result.content[0].text).toContain('fun myKotlinFunction(param: String): Int');
     expect(response.isError).toBeUndefined();
-  }, 3000);
+  }, 6000);
 
   it('should respond to get_chunk tool call', async () => {
     const get_chunk = {
       "jsonrpc": "2.0",
-      "id": 7,
+      "id": "get_chunk_2", // idをユニークにする
       "method": "tools/call",
       "params": {
         "name": "get_chunk",
@@ -361,7 +312,7 @@ fun myKotlinFunction(param: String): Int {
     // 応答を少し待つ
     await new Promise((resolve) => setTimeout(resolve, 1000));
 
-    const response = JSON.parse(stdoutBuffer);
+    const response = JSON.parse(responseMap.get("get_chunk_2") || '{}'); // Mapから取得
     expect(response.result.content[0].text).toContain('func mySwiftFunction(param: String) -> Int');
     expect(response.isError).toBeUndefined();
   }, 3000);
@@ -369,7 +320,7 @@ fun myKotlinFunction(param: String): Int {
   it('should return error for non-existent chunkId', async () => {
     const get_chunk = {
       "jsonrpc": "2.0",
-      "id": 8,
+      "id": "get_chunk_error_1", // idをユニークにする
       "method": "tools/call",
       "params": {
         "name": "get_chunk",
@@ -383,7 +334,7 @@ fun myKotlinFunction(param: String): Int {
     // 応答を少し待つ
     await new Promise((resolve) => setTimeout(resolve, 1000));
 
-    const response = JSON.parse(stdoutBuffer);
+    const response = JSON.parse(responseMap.get("get_chunk_error_1") || '{}'); // Mapから取得
     expect(response.result.content[0].text).toContain('Chunk not found.');
     expect(response.result.isError).toBe(true);
   }, 3000);
@@ -391,7 +342,7 @@ fun myKotlinFunction(param: String): Int {
   it('should respond to find_file tool call', async () => {
     const find_file = {
       "jsonrpc": "2.0",
-      "id": 9,
+      "id": "find_file_1", // idをユニークにする
       "method": "tools/call",
       "params": {
         "name": "find_file",
@@ -400,20 +351,46 @@ fun myKotlinFunction(param: String): Int {
         }
       }
     };
-    serverProcess.stdin.write(`${JSON.stringify(find_file)}\n\n`);
+    serverProcess.stdin.write(`${JSON.stringify(find_file)}
+
+`);
 
     // 応答を少し待つ
     await new Promise((resolve) => setTimeout(resolve, 1000));
 
-    const response = JSON.parse(stdoutBuffer);
+    const response = JSON.parse(responseMap.get("find_file_1") || '{}'); // Mapから取得
     const files = JSON.parse(response.result.content[0].text);
     expect(files).toEqual(expect.arrayContaining([path.join(TEST_PROJECT_DIR, 'test.swift')]));
+  }, 3000);
+
+  it('should return error for non-existent file in list_functions_in_file', async () => {
+    const list_functions_in_file = {
+      "jsonrpc": "2.0",
+      "id": "list_functions_error_1", // idをユニークにする
+      "method": "tools/call",
+      "params": {
+        "name": "list_functions_in_file",
+        "arguments": {
+          "filePath": path.join(TEST_PROJECT_DIR, 'nonExistentFile.swift'),
+        }
+      }
+    };
+    serverProcess.stdin.write(`${JSON.stringify(list_functions_in_file)}
+
+`);
+
+    // 応答を少し待つ
+    await new Promise((resolve) => setTimeout(resolve, 1000));
+
+    const response = JSON.parse(responseMap.get("list_functions_error_1") || '{}'); // Mapから取得
+    expect(response.result.content[0].text).toContain('Error: Command failed with code 1:');
+    expect(response.result.isError).toBe(true);
   }, 3000);
 
   it('should respond to find_function tool call for Swift', async () => {
     const find_function = {
       "jsonrpc": "2.0",
-      "id": 10,
+      "id": "find_function_swift_1", // idをユニークにする
       "method": "tools/call",
       "params": {
         "name": "find_function",
@@ -428,7 +405,7 @@ fun myKotlinFunction(param: String): Int {
     // 応答を少し待つ
     await new Promise((resolve) => setTimeout(resolve, 1000));
 
-    const response = JSON.parse(stdoutBuffer);
+    const response = JSON.parse(responseMap.get("find_function_swift_1") || '{}'); // Mapから取得
     const functions = JSON.parse(response.result.content[0].text);
     expect(functions).toEqual(
       expect.arrayContaining([
@@ -440,17 +417,16 @@ fun myKotlinFunction(param: String): Int {
     );
   }, 3000);
 
-  // パーサーがバグっているので一旦スキップ
-  it.skip('should respond to find_function tool call for Kotlin', async () => {
+  it('should respond to find_function tool call for Kotlin', async () => {
     const find_function = {
       "jsonrpc": "2.0",
-      "id": 11,
+      "id": "find_function_kotlin_1", // idをユニークにする
       "method": "tools/call",
       "params": {
         "name": "find_function",
         "arguments": {
           "filePath": path.join(TEST_PROJECT_DIR, 'test.kt'),
-          "functionQuery": 'mySwiftFunction',
+          "functionQuery": 'myKotlinFunction',
         }
       }
     };
@@ -459,7 +435,7 @@ fun myKotlinFunction(param: String): Int {
     // 応答を少し待つ
     await new Promise((resolve) => setTimeout(resolve, 3000));
 
-    const response = JSON.parse(stdoutBuffer);
+    const response = JSON.parse(responseMap.get("find_function_kotlin_1") || '{}'); // Mapから取得
     const functions = JSON.parse(response.result.content[0].text);
     expect(functions).toEqual(
       expect.arrayContaining([

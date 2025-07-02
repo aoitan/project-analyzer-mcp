@@ -64,22 +64,22 @@ export class KotlinParser implements IParser {
         filePath,
       ]);
       const parsedOutput: any = JSON.parse(stdout);
-      console.log(`parsedOutput: ${parsedOutput}`);
 
       const fileContentBuffer = await this.readFile(filePath);
-      console.log(`fileContentBuffer: ${fileContentBuffer}`);
 
       const chunks: CodeChunk[] = await Promise.all(
         parsedOutput.children.map(async (item: any) => {
           const startLine = item.startLine;
           const endLine = item.endLine;
 
-          let signature = item.name || '';
+          let signature = item.signature || item.name || '';
+
           if (item.type === 'function') {
-            if (!signature.includes('(')) {
-              signature += '()';
-            }
-            signature = `fun ${signature}: ${item.typename || 'Unit'}`;
+            // item.signature があればそのまま使うので、以下のロジックは不要になる
+            // if (!signature.includes('(')) {
+            //   signature += '()';
+            // }
+            // signature = `fun ${signature}: ${item.typename || 'Unit'}`;
           } else if (item.type === 'class') {
             signature = `class ${signature}`;
           }
@@ -110,7 +110,7 @@ export class KotlinParser implements IParser {
       return chunks;
     } catch (error) {
       logger.error(`Error parsing Kotlin file ${filePath}: ${error}`);
-      return [];
+      throw error; // エラーをスローするように変更
     }
   }
 

@@ -56,8 +56,15 @@ export function createMcpServer() {
       },
     },
     async ({ filePath }) => {
-      const functions = await analysisService.listFunctionsInFile(filePath);
-      return { content: [{ type: 'text', text: JSON.stringify(functions, null, 2) }] };
+      try {
+        const functions = await analysisService.listFunctionsInFile(filePath);
+        return { content: [{ type: 'text', text: JSON.stringify(functions, null, 2) }] };
+      } catch (error) {
+        return {
+          content: [{ type: 'text', text: `Error: ${error instanceof Error ? error.message : String(error)}` }],
+          isError: true,
+        };
+      }
     },
   );
   server.registerTool(
@@ -71,12 +78,19 @@ export function createMcpServer() {
       },
     },
     async ({ filePath, functionSignature }) => {
-      const content = await analysisService.getFunctionChunk(filePath, functionSignature);
-      if (content) {
-        return { content: [{ type: 'text', text: content.content }] };
-      } else {
+      try {
+        const content = await analysisService.getFunctionChunk(filePath, functionSignature);
+        if (content) {
+          return { content: [{ type: 'text', text: content.content }] };
+        } else {
+          return {
+            content: [{ type: 'text', text: 'Function chunk not found.' }],
+            isError: true,
+          };
+        }
+      } catch (error) {
         return {
-          content: [{ type: 'text', text: 'Function chunk not found.' }],
+          content: [{ type: 'text', text: `Error: ${error instanceof Error ? error.message : String(error)}` }],
           isError: true,
         };
       }

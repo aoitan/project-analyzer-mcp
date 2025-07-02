@@ -8,7 +8,7 @@
   },
   "scripts": {
     "test": "npm run format && vitest",
-    "test:integration": "vitest run src/__tests__/integration/integration.test.ts",
+    "test:integration": "npm run build && vitest run src/__tests__/integration/integration.test.ts",
     "start": "npm run build && node dist/index.js",
     "build": "tsc",
     "format": "prettier --write \"**/*.{ts,tsx,js,jsx,json,md}\"",
