@@ -59,9 +59,7 @@
     ```
 4.  Kotlin AST JSON出力CLIツールをビルドします。（Kotlinコード解析のため）
     ```bash
-    cd kotlin-parser-cli
-    ./gradlew shadowJar
-    cd ..
+    npm run build-kotlin-parser-cli
     ```
 
 ## テストの実行

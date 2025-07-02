@@ -14,7 +14,8 @@
     "format": "prettier --write \"**/*.{ts,tsx,js,jsx,json,md}\"",
     "render-diagrams": "java -jar tools/plantuml/plantuml.jar -tsvg doc/diagrams/*.puml",
     "inspector-start": "npx @modelcontextprotocol/inspector npm start",
-    "install-sourcekitten": "./scripts/install_sourcekitten.sh"
+    "install-sourcekitten": "./scripts/install_sourcekitten.sh",
+    "build-kotlin-parser-cli": "./scripts/build_kotlin_parser_cli.sh"
   },
   "keywords": [],
   "author": "",
