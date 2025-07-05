@@ -47,17 +47,13 @@
 
 - `SwiftParser` のように、新しい言語のパーサーを容易に追加できるような抽象化レイヤーを導入する。（解決済み）
 
-### 2.2. オプショナルな言語指定引数の追加
 
-- パーサー機能において、言語指定の引数をオプショナルにし、指定がない場合はファイル拡張子から言語を自動判断する機能を追加します。（詳細は [オプショナルな言語指定引数の追加](issues/feature_optional_language_argument.md) を参照）
 
 ### 2.2. Kotlinパーサーの実装 (詳細は [Kotlin対応の現状とロードマップ](kotlin_support.md) を参照)
 
 - **計画:**
   1.  `KotlinParser` の機能強化（外部ツール連携）
-      - 関連Issue: `kotlin_parser_feature_enhancement_external_tool_integration.md`
   2.  `KotlinParser` の機能強化（`CodeChunk` への正確な変換）
-      - 関連Issue: `kotlin_parser_feature_enhancement_codechunk_conversion.md`
   3.  Kotlin対応のテストカバレッジ向上
       - 関連Issue: `kotlin_support_test_coverage_improvement.md`
   4.  Kotlin対応のパフォーマンス最適化
