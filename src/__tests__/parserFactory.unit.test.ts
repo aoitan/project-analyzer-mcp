@@ -70,8 +70,8 @@ describe('ParserFactory (Unit Tests)', () => {
   });
 
   it('should throw error if no parser is registered for a language', () => {
-    expect(() => ParserFactory.getParser('kotlin')).toThrow(
-      "No parser registered for language 'kotlin'.",
+    expect(() => ParserFactory.getParser('test.unknown', 'unknown')).toThrow(
+      "No parser registered for language 'unknown'.",
     );
   });
 
@@ -82,7 +82,47 @@ describe('ParserFactory (Unit Tests)', () => {
     ParserFactory.registerParser('swift', swiftParser);
     ParserFactory.registerParser('kotlin', kotlinParser);
 
-    expect(ParserFactory.getParser('swift')).toBe(swiftParser);
-    expect(ParserFactory.getParser('kotlin')).toBe(kotlinParser);
+    expect(ParserFactory.getParser('dummy.swift', 'swift')).toBe(swiftParser);
+    expect(ParserFactory.getParser('dummy.kt', 'kotlin')).toBe(kotlinParser);
+  });
+
+  it('should determine language from file extension if language is not specified', () => {
+    const swiftParser = new DummyParser();
+    const kotlinParser = new AnotherDummyParser();
+
+    ParserFactory.registerParser('swift', swiftParser);
+    ParserFactory.registerParser('kotlin', kotlinParser);
+
+    expect(ParserFactory.getParser('test.swift')).toBe(swiftParser);
+    expect(ParserFactory.getParser('test.kt')).toBe(kotlinParser);
+  });
+
+  it('should prioritize specified language over file extension', () => {
+    const swiftParser = new DummyParser();
+    const kotlinParser = new AnotherDummyParser();
+
+    ParserFactory.registerParser('swift', swiftParser);
+    ParserFactory.registerParser('kotlin', kotlinParser);
+
+    // filePathが.swiftだが、languageでkotlinを指定した場合
+    expect(ParserFactory.getParser('test.swift', 'kotlin')).toBe(kotlinParser);
+  });
+
+  it('should throw error if language cannot be determined from extension and not specified', () => {
+    const swiftParser = new DummyParser();
+    ParserFactory.registerParser('swift', swiftParser);
+
+    expect(() => ParserFactory.getParser('test.txt')).toThrow(
+      'Could not determine language from file extension: txt. Please specify language explicitly.',
+    );
+  });
+
+  it('should throw error if specified language has no registered parser', () => {
+    const swiftParser = new DummyParser();
+    ParserFactory.registerParser('swift', swiftParser);
+
+    expect(() => ParserFactory.getParser('test.swift', 'java')).toThrow(
+      "No parser registered for language 'java'.",
+    );
   });
 });

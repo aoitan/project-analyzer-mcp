@@ -14,10 +14,32 @@ export class ParserFactory {
     ParserFactory.parsers.set(language, parser);
   }
 
-  public static getParser(language: string): IParser {
-    const parser = ParserFactory.parsers.get(language);
+  public static getParser(filePath: string, language?: string): IParser {
+    let determinedLanguage = language;
+
+    if (!determinedLanguage) {
+      const ext = filePath.split('.').pop();
+      switch (ext) {
+        case 'swift':
+          determinedLanguage = 'swift';
+          break;
+        case 'kt':
+          determinedLanguage = 'kotlin';
+          break;
+        default:
+          throw new Error(
+            `Could not determine language from file extension: ${ext || ''}. Please specify language explicitly.`,
+          );
+      }
+    }
+
+    if (!determinedLanguage) {
+      throw new Error('Language could not be determined.');
+    }
+
+    const parser = ParserFactory.parsers.get(determinedLanguage);
     if (!parser) {
-      throw new Error(`No parser registered for language '${language}'.`);
+      throw new Error(`No parser registered for language '${determinedLanguage}'.`);
     }
     return parser;
   }
