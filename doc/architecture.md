@@ -119,9 +119,14 @@ AnalysisService --> KnowledgeGraph : Stores Knowledge Graph (Future)
 
 ### 6.1. シーケンス図
 
-LLM/AgentがMCPサーバーのツールを呼び出し、コードチャンクを取得するまでの主要なシーケンスを図示します。
+LLM/AgentがMCPサーバーの各ツールを呼び出す際の主要なシーケンスを図示します。
 
-![シーケンス図](diagrams/sequence_diagram.svg)
+- [analyze_project シーケンス図](diagrams/sequence_analyze_project.svg)
+- [get_chunk シーケンス図](diagrams/sequence_get_chunk.svg)
+- [list_functions_in_file シーケンス図](diagrams/sequence_list_functions_in_file.svg)
+- [get_function_chunk シーケンス図](diagrams/sequence_get_function_chunk.svg)
+- [find_file シーケンス図](diagrams/sequence_find_file.svg)
+- [find_function シーケンス図](diagrams/sequence_find_function.svg)
 
 ### 6.2. クラス図
 
