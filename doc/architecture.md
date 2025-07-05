@@ -28,7 +28,8 @@ package "MCP Server Application" {
   [Analysis Service (src/analysisService.ts)] as AnalysisService
   [Parser Factory (src/parserFactory.ts)] as ParserFactory
   [IParser Interface (src/interfaces/parser.ts)] as IParser
-  [SwiftParser (src/parser.ts)] as SwiftParser
+  [SwiftParser (src/swiftParser.ts)] as SwiftParser
+  [KotlinParser (src/kotlinParser.ts)] as KotlinParser
 }
 
 package "Local Storage" {
@@ -47,7 +48,9 @@ Server --> AnalysisService : Orchestrates Analysis
 AnalysisService --> ParserFactory : Requests Parser
 ParserFactory ..> IParser : <<creates>>
 SwiftParser .up.|> IParser : <<implements>>
+KotlinParser .up.|> IParser : <<implements>>
 ParserFactory --> SwiftParser : Uses specific parser
+ParserFactory --> KotlinParser : Uses specific parser
 SwiftParser --> LanguageParser : Code Analysis
 
 AnalysisService --> ChunksStorage : Persists Code Chunks
@@ -85,7 +88,7 @@ AnalysisService --> KnowledgeGraph : Stores Knowledge Graph (Future)
   - 要求された言語に対応するパーサーのインスタンスを返します。
   - 未登録の言語のパーサーが要求された場合にエラーをスローします。
 
-### 4.4. パーサーモジュール (`src/parser.ts` など)
+### 4.4. パーサーモジュール (`src/swiftParser.ts`, `src/kotlinParser.ts` など)
 
 - **役割**: `IParser` インターフェースを実装し、外部の言語固有の解析ツールと連携して、その出力を標準化された `CodeChunk` 形式に変換する責任を負います。
 - **責任**:

@@ -13,6 +13,7 @@
 - **MCPサーバー実装**: TypeScriptとNode.jsを使用し、`@modelcontextprotocol/sdk` を活用して構築されています。
 - **コードチャンク化**: Swiftソースファイルを解析し、関数単位でコードチャンクを抽出します。外部ツールとしてSourceKittenを使用しています。**Kotlinソースファイルの解析もサポートしており、クラス内の関数やプロパティも正確に抽出できます。**
   - `getLineNumber` メソッドの正確性を向上させ、`SourceKitten` のオフセット情報から正確な行番号を導出済みです。
+  - **パーサーの分割**: `src/parser.ts` を `src/swiftParser.ts` と `src/kotlinParser.ts` に分割し、各言語の解析ロジックを独立させました。
 - **ローカルストレージとキャッシュ**: 解析されたコードチャンクは、インメモリキャッシュに保存されるほか、`data/chunks/` ディレクトリにJSONファイルとして永続化されます。
   - `analyzeProject` の `getSwiftFiles` ダミー実装を、指定されたプロジェクトパス内のすべての `.swift` ファイルを再帰的に探索する実際のロジックに置き換え済みです。
 - **ツール**: 以下のツールが実装されています。
@@ -76,9 +77,7 @@ npm test
 npm run test:integration
 ```
 
-## 図の自動レンダリング
-
-`doc/diagrams/` 内のPlantUMLドキュメント（`.puml` ファイル）が更新された際に、自動的に対応する画像（SVG形式）をレンダリングするGit `pre-commit` フックが設定されています。これにより、常に最新の図がリポジトリに反映されることを保証します。
+## 図のレンダリング
 
 ### 設定方法
 
@@ -92,13 +91,6 @@ npm run test:integration
     ```
 
     **注意**: `plantuml.jar` は `.gitignore` に追加されており、Git管理の対象外です。
-
-2.  **Git `pre-commit` フックの有効化**:
-    プロジェクトのルートディレクトリで以下のコマンドを実行し、`pre-commit` フックスクリプトに実行権限を付与します。
-    ```bash
-    chmod +x .git/hooks/pre-commit
-    ```
-    これにより、コミットが作成される直前に、`doc/diagrams/*.puml` ファイルが自動的にレンダリングされ、生成された `.svg` ファイルがコミットに含められます。
 
 ### 手動でのレンダリング
 
