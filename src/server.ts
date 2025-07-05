@@ -22,7 +22,23 @@ export function createMcpServer() {
     },
     async ({ projectPath }) => {
       await analysisService.analyzeProject(projectPath);
-      return { content: [{ type: 'text', text: 'Project analysis completed.' }] };
+      const responseContent = {
+        description: `プロジェクトの解析が完了しました。${projectPath} にあるファイルが解析され、コードチャンクが抽出されました。`,
+        suggested_actions: [
+          `list_functions_in_file: 特定のファイルに含まれる関数の一覧を取得する`,
+          `find_file: 特定のパターンに一致するファイルを探す`,
+          `get_chunk: 特定のチャンクIDのコードを取得する`,
+        ],
+        follow_up_questions: [
+          `どのファイルの関数リストを見たいですか?`,
+          `特定のファイルを探しますか?`,
+          `特定のチャンクIDのコードを見たいですか?`,
+        ],
+        data: {
+          projectPath: projectPath,
+        },
+      };
+      return { content: [{ type: 'text', text: JSON.stringify(responseContent, null, 2) }] };
     },
   );
   server.registerTool(
@@ -58,7 +74,22 @@ export function createMcpServer() {
     async ({ filePath }) => {
       try {
         const functions = await analysisService.listFunctionsInFile(filePath);
-        return { content: [{ type: 'text', text: JSON.stringify(functions, null, 2) }] };
+        const responseContent = {
+          description: `${filePath} に含まれる関数の一覧です。${functions.length} 個の関数が見つかりました。`,
+          suggested_actions: [
+            `get_function_chunk: 特定の関数のコードを取得する`,
+            `find_function: このファイル内で特定の関数を検索する`,
+          ],
+          follow_up_questions: [
+            `どの関数のコードを見たいですか?`,
+            `このファイル内で特定の関数を検索しますか?`,
+          ],
+          data: {
+            filePath: filePath,
+            functions: functions,
+          },
+        };
+        return { content: [{ type: 'text', text: JSON.stringify(responseContent, null, 2) }] };
       } catch (error) {
         return {
           content: [
@@ -86,7 +117,23 @@ export function createMcpServer() {
       try {
         const content = await analysisService.getFunctionChunk(filePath, functionSignature);
         if (content) {
-          return { content: [{ type: 'text', text: content.content }] };
+          const responseContent = {
+            description: `${filePath} にある ${functionSignature} 関数のコードチャンクです。`,
+            suggested_actions: [
+              `analyze_dependencies: この関数の依存関係を解析する`,
+              `get_dependencies: この関数の呼び出し元や呼び出し先を調べる`,
+            ],
+            follow_up_questions: [
+              `この関数について他に知りたいことはありますか?`,
+              `この関数の依存関係を調べますか?`,
+            ],
+            data: {
+              filePath: filePath,
+              functionSignature: functionSignature,
+              codeContent: content.content,
+            },
+          };
+          return { content: [{ type: 'text', text: JSON.stringify(responseContent, null, 2) }] };
         } else {
           return {
             content: [{ type: 'text', text: 'Function chunk not found.' }],
