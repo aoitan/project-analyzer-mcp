@@ -1,0 +1,46 @@
+@startuml
+
+actor "LLM/Agent" as LLM
+participant "MCP Server" as Server
+participant "AnalysisService" as AS
+participant "ParserFactory" as PF
+participant "SwiftParser" as SP
+participant "KotlinParser" as KP
+participant "SourceKitten" as SK
+participant "Kotlin CLI" as KCLI
+participant "File System" as FS
+
+== find_function ==
+LLM -> Server: callTool("find_function", { filePath: "...", functionQuery: "..." })
+activate Server
+Server -> AS: findFunctions(filePath, functionQuery)
+activate AS
+AS -> PF: getParser(language)
+activate PF
+PF --> AS: parser
+deactivate PF
+AS -> parser: parseFile(filePath)
+activate parser
+parser -> FS: readFile(filePath)
+activate FS
+FS --> parser: fileContent
+deactivate FS
+alt if Swift file
+  parser -> SK: structure --file filePath
+  activate SK
+  SK --> parser: JSON output
+  deactivate SK
+else if Kotlin file
+  parser -> KCLI: java -jar kotlin-parser-cli.jar filePath
+  activate KCLI
+  KCLI --> parser: JSON output
+  deactivate KCLI
+end
+parser --> AS: CodeChunk[]
+deactivate parser
+AS --> Server: functionsList
+deactivate AS
+Server --> LLM: { content: [{ type: "text", text: JSON.stringify(functionsList) }] }
+deactivate Server
+
+@enduml

@@ -1,0 +1,22 @@
+@startuml
+
+actor "LLM/Agent" as LLM
+participant "MCP Server" as Server
+participant "AnalysisService" as AS
+participant "Glob Library" as GL
+
+== find_file ==
+LLM -> Server: callTool("find_file", { pattern: "..." })
+activate Server
+Server -> AS: findFiles(pattern)
+activate AS
+AS -> GL: glob(pattern, { absolute: true })
+activate GL
+GL --> AS: filePaths
+deactivate GL
+AS --> Server: filePaths
+deactivate AS
+Server --> LLM: { content: [{ type: "text", text: JSON.stringify(filePaths) }] }
+deactivate Server
+
+@enduml

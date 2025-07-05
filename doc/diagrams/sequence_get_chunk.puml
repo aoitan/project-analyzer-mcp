@@ -1,0 +1,32 @@
+@startuml
+
+actor "LLM/Agent" as LLM
+participant "MCP Server" as Server
+participant "AnalysisService" as AS
+participant "File System" as FS
+
+== get_chunk ==
+LLM -> Server: callTool("get_chunk", { chunkId: "..." })
+activate Server
+Server -> AS: getChunk(chunkId)
+activate AS
+AS -> AS: check parsedProjects cache
+alt chunk found in cache
+  AS --> AS: return cached chunk
+else chunk not in cache
+  AS -> FS: loadChunk(chunkId)
+  activate FS
+  FS --> AS: chunkData
+  deactivate FS
+  AS --> AS: return loaded chunk
+end
+AS --> Server: { content: [{ type: "text", text: "..." }] }
+alt chunk not found
+  Server --> LLM: { content: [{ type: "text", text: "Chunk not found." }], isError: true }
+else chunk found
+  Server --> LLM: { content: [{ type: "text", text: "..." }] }
+end
+deactivate AS
+deactivate Server
+
+@enduml
