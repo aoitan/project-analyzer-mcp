@@ -142,4 +142,40 @@ class MyClass {
       filePath,
     ]);
   });
+
+  it('should handle CLI tool execution failure', async () => {
+    const failingExec = vi.fn((command, args) => {
+      return Promise.reject(new Error('Command failed with code 1: CLI error output'));
+    });
+    const failingParser = new KotlinParser(failingExec, mockReadFile);
+    const filePath = '/path/to/failing_cli.kt';
+
+    const chunks = await failingParser.parseFile(filePath);
+
+    expect(chunks).toEqual([]);
+    expect(failingExec).toHaveBeenCalledWith('java', [
+      '-jar',
+      'kotlin-parser-cli/build/libs/kotlin-parser-cli.jar',
+      filePath,
+    ]);
+    // logger.errorが呼ばれたことを確認するアサーションを追加することも可能
+  });
+
+  it('should handle invalid JSON output from CLI tool', async () => {
+    const invalidJsonExec = vi.fn((command, args) => {
+      return Promise.resolve({ stdout: 'invalid json', stderr: '' });
+    });
+    const invalidJsonParser = new KotlinParser(invalidJsonExec, mockReadFile);
+    const filePath = '/path/to/invalid_json.kt';
+
+    const chunks = await invalidJsonParser.parseFile(filePath);
+
+    expect(chunks).toEqual([]);
+    expect(invalidJsonExec).toHaveBeenCalledWith('java', [
+      '-jar',
+      'kotlin-parser-cli/build/libs/kotlin-parser-cli.jar',
+      filePath,
+    ]);
+    // logger.errorが呼ばれたことを確認するアサーションを追加することも可能
+  });
 });

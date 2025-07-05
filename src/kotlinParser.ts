@@ -109,7 +109,21 @@ export class KotlinParser implements IParser {
       logger.info(`Successfully parsed Kotlin file: ${filePath}`);
       return chunks;
     } catch (error) {
-      logger.error(`Error parsing Kotlin file ${filePath}: ${error}`);
+      let errorMessage = `Error parsing Kotlin file ${filePath}: `;
+      if (error instanceof Error) {
+        if (error.message.includes('Command failed with code')) {
+          errorMessage += `CLI tool execution failed. ${error.message}`;
+        } else if (error.message.includes('Command execution error')) {
+          errorMessage += `CLI tool could not be executed. ${error.message}`;
+        } else if (error.message.includes('Unexpected token') || error.message.includes('JSON')) {
+          errorMessage += `Invalid JSON output from CLI tool. ${error.message}`;
+        } else {
+          errorMessage += error.message;
+        }
+      } else {
+        errorMessage += String(error);
+      }
+      logger.error(errorMessage);
       return []; // エラーが発生した場合は空の配列を返す
     }
   }
