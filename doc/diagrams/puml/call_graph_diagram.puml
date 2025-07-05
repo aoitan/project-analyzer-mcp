@@ -1,0 +1,35 @@
+@startuml
+
+[LLM/Agent] --> (callTool)
+
+(callTool) --> (analyzeProject)
+(callTool) --> (getChunk)
+(callTool) --> (listFunctionsInFile)
+(callTool) --> (getFunctionChunk)
+(callTool) --> (findFile)
+(callTool) --> (findFunction)
+
+(analyzeProject) --> (parseFile)
+(analyzeProject) --> (saveChunk)
+
+(getChunk) --> (loadChunk)
+
+(listFunctionsInFile) --> (parseFile)
+
+(getFunctionChunk) --> (parseFile)
+
+(findFile) --> (glob)
+
+(findFunction) --> (parseFile)
+
+(parseFile) --> (execPromise)
+(parseFile) --> (getLineNumber)
+
+(getLineNumber) --> (fs.readFile)
+
+(saveChunk) --> (fs.mkdir)
+(saveChunk) --> (fs.writeFile)
+
+(loadChunk) --> (fs.readFile)
+
+@enduml

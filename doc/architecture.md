@@ -121,36 +121,36 @@ AnalysisService --> KnowledgeGraph : Stores Knowledge Graph (Future)
 
 LLM/AgentがMCPサーバーの各ツールを呼び出す際の主要なシーケンスを図示します。
 
-- [analyze_project シーケンス図](diagrams/sequence_analyze_project.svg)
-- [get_chunk シーケンス図](diagrams/sequence_get_chunk.svg)
-- [list_functions_in_file シーケンス図](diagrams/sequence_list_functions_in_file.svg)
-- [get_function_chunk シーケンス図](diagrams/sequence_get_function_chunk.svg)
-- [find_file シーケンス図](diagrams/sequence_find_file.svg)
-- [find_function シーケンス図](diagrams/sequence_find_function.svg)
+- [analyze_project シーケンス図](diagrams/svg/sequence_analyze_project.svg)
+- [get_chunk シーケンス図](diagrams/svg/sequence_get_chunk.svg)
+- [list_functions_in_file シーケンス図](diagrams/svg/sequence_list_functions_in_file.svg)
+- [get_function_chunk シーケンス図](diagrams/svg/sequence_get_function_chunk.svg)
+- [find_file シーケンス図](diagrams/svg/sequence_find_file.svg)
+- [find_function シーケンス図](diagrams/svg/sequence_find_function.svg)
 
 ### 6.2. クラス図
 
 主要なクラスとその関係を図示します。
 
-![クラス図](diagrams/class_diagram.svg)
+![クラス図](diagrams/svg/class_diagram.svg)
 
 ### 6.3. オブジェクト図
 
 実行時のオブジェクトのインスタンスとその関係を図示します。
 
-![オブジェクト図](diagrams/object_diagram.svg)
+![オブジェクト図](diagrams/svg/object_diagram.svg)
 
 ### 6.4. コールグラフ図
 
 主要な関数/メソッドの呼び出し関係を図示します。
 
-![コールグラフ図](diagrams/call_graph_diagram.svg)
+![コールグラフ図](diagrams/svg/call_graph_diagram.svg)
 
 ### 6.5. データフロー図
 
 主要なデータとその流れを図示します。
 
-![データフロー図](diagrams/data_flow_diagram.svg)
+![データフロー図](diagrams/svg/data_flow_diagram.svg)
 
 ```
 

@@ -1,0 +1,69 @@
+@startuml
+
+class McpServer {
+  + createMcpServer()
+  + registerTool()
+}
+
+interface IParser {
+  + parseFile(filePath: string): Promise<CodeChunk[]>
+}
+
+class ParserFactory {
+  - static parsers: Map<string, IParser>
+  + static registerParser(language: string, parser: IParser): void
+  + static getParser(language: string): IParser
+}
+
+class AnalysisService {
+  - parsedProjects: Map<string, CodeChunk[]>
+  - chunksDir: string
+  + constructor(chunksDir: string)
+  + analyzeProject(projectPath: string): Promise<void>
+  + getChunk(chunkId: string): Promise<{ content: string } | null>
+  + listFunctionsInFile(filePath: string): Promise<{ signature: string }[]>
+  + getFunctionChunk(filePath: string, functionSignature: string): Promise<{ content: string } | null>
+  + findFiles(pattern: string): Promise<string[]>
+  + findFunctions(filePath: string, functionQuery: string): Promise<{ id: string; signature: string }[]>
+  - saveChunk(chunk: CodeChunk): Promise<void>
+  - loadChunk(chunkId: string): Promise<{ content: string } | null>
+  - toSafeFileName(name: string): string
+}
+
+class SwiftParser {
+  + constructor(execFn: ExecFunction, readFileFn: ReadFileFunction)
+  + parseFile(filePath: string): Promise<CodeChunk[]>
+  - getLineNumber(filePath: string, offset: number): Promise<number>
+}
+
+class KotlinParser {
+  + constructor(execFn: ExecFunction, readFileFn: ReadFileFunction)
+  + parseFile(filePath: string): Promise<CodeChunk[]>
+  - getLineNumber(filePath: string, offset: number): Promise<number>
+}
+
+interface CodeChunk {
+  id: string
+  name: string
+  signature: string
+  type: string
+  content: string
+  filePath: string
+  startLine: number
+  endLine: number
+  offset: number
+  length: number
+  calls: string[]
+  children?: any[]
+}
+
+McpServer ..> AnalysisService : uses
+AnalysisService ..> ParserFactory : uses
+ParserFactory ..> IParser : <<creates>>
+SwiftParser .up.|> IParser : <<implements>>
+KotlinParser .up.|> IParser : <<implements>>
+AnalysisService --> CodeChunk : creates
+SwiftParser --> CodeChunk : creates
+KotlinParser --> CodeChunk : creates
+
+@enduml
