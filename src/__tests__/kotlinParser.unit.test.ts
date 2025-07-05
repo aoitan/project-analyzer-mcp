@@ -55,6 +55,18 @@ describe('KotlinParser (Unit Tests)', () => {
         endLine: 9,
         offset: 46,
         length: 79,
+        children: [
+          {
+            type: 'function',
+            name: 'myMethod',
+            signature: 'fun myMethod()',
+            content: 'fun myMethod() {\n        println("Inside myMethod")\n    }',
+            startLine: 6,
+            endLine: 8,
+            offset: 68,
+            length: 59,
+          },
+        ],
       },
     ],
   };
@@ -123,6 +135,19 @@ class MyClass {
     expect(chunks[1].offset).toBe(46);
     expect(chunks[1].length).toBe(79);
     expect(chunks[1].calls).toEqual([]);
+    expect(chunks[1].children).toHaveLength(1);
+    expect(chunks[1].children[0].id).toBe('fun myMethod()');
+    expect(chunks[1].children[0].name).toBe('myMethod');
+    expect(chunks[1].children[0].type).toBe('source.lang.kotlin.decl.function');
+    expect(chunks[1].children[0].content).toBe(
+      `fun myMethod() {\n        println("Inside myMethod")\n    }`,
+    );
+    expect(chunks[1].children[0].filePath).toBe(filePath);
+    expect(chunks[1].children[0].startLine).toBe(6);
+    expect(chunks[1].children[0].endLine).toBe(8);
+    expect(chunks[1].children[0].offset).toBe(68);
+    expect(chunks[1].children[0].length).toBe(59);
+    expect(chunks[1].children[0].calls).toEqual([]);
 
     // expect(mockExec).toHaveBeenCalledWith('kotlin-language-server', ['--file', filePath]); // 実際のJAR呼び出しになるためコメントアウト
   });

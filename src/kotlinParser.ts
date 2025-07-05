@@ -67,44 +67,41 @@ export class KotlinParser implements IParser {
 
       const fileContentBuffer = await this.readFile(filePath);
 
-      const chunks: CodeChunk[] = await Promise.all(
-        parsedOutput.children.map(async (item: any) => {
-          const startLine = item.startLine;
-          const endLine = item.endLine;
+      const processNode = async (item: any): Promise<CodeChunk | CodeChunk[]> => {
+        const startLine = item.startLine;
+        const endLine = item.endLine;
+        const signature = item.signature || item.name || '';
 
-          let signature = item.signature || item.name || '';
+        const content = fileContentBuffer.toString(
+          'utf8',
+          item.offset || 0,
+          (item.offset || 0) + (item.length || 0),
+        );
 
-          if (item.type === 'function') {
-            // item.signature があればそのまま使うので、以下のロジックは不要になる
-            // if (!signature.includes('(')) {
-            //   signature += '()';
-            // }
-            // signature = `fun ${signature}: ${item.typename || 'Unit'}`;
-          } else if (item.type === 'class') {
-            // signature = `class ${signature}`;
-          }
+        const chunk: CodeChunk = {
+          id: signature,
+          name: item.name,
+          signature: signature,
+          type: `source.lang.kotlin.decl.${item.type}`,
+          content: item.content, // CLIツールからのcontentを直接使用
+          filePath: filePath,
+          startLine: startLine,
+          endLine: endLine,
+          offset: item.offset || 0,
+          length: item.length || 0,
+          calls: item.calls || [],
+          children: [], // 初期化
+        };
 
-          const content = fileContentBuffer.toString(
-            'utf8',
-            item.offset || 0,
-            (item.offset || 0) + (item.length || 0),
-          );
+        if (item.children && item.children.length > 0) {
+          chunk.children = (await Promise.all(item.children.map(processNode))).flat();
+        }
+        return chunk;
+      };
 
-          return {
-            id: signature,
-            name: item.name,
-            signature: signature,
-            type: `source.lang.kotlin.decl.${item.type}`,
-            content: content,
-            filePath: filePath,
-            startLine: startLine,
-            endLine: endLine,
-            offset: item.offset || 0,
-            length: item.length || 0,
-            calls: item.calls || [],
-          };
-        }),
-      );
+      const chunks: CodeChunk[] = (
+        await Promise.all(parsedOutput.children.map(processNode))
+      ).flat();
 
       logger.info(`Successfully parsed Kotlin file: ${filePath}`);
       return chunks;
