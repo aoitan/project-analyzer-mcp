@@ -91,6 +91,46 @@ fun myKotlinFunction(param: String): Int {
 }
 `,
     );
+    await fs.writeFile(
+      path.join(TEST_PROJECT_DIR, 'test_complex.kt'),
+      `
+package com.example
+
+class MyComplexClass(val name: String) {
+    private var counter: Int = 0
+
+    fun incrementCounter(): Int {
+        counter++
+        return counter
+    }
+
+    fun <T> processList(items: List<T>, filter: (T) -> Boolean = { true }): List<T> where T : Any {
+        return items.filter(filter)
+    }
+
+    companion object {
+        const val MAX_COUNT = 100
+        fun create(name: String): MyComplexClass {
+            return MyComplexClass(name)
+        }
+    }
+
+    enum class Status { ACTIVE, INACTIVE }
+
+    interface MyInterface {
+        fun doSomething()
+    }
+
+    object MySingleton {
+        fun getInstance() = "instance"
+    }
+}
+
+fun topLevelFunction(value: String): String {
+    return "Top: $value"
+}
+`,
+    );
 
     // 既存のチャンクディレクトリをクリーンアップ
     await fs.rm(CHUNKS_DIR, { recursive: true, force: true });
@@ -230,6 +270,7 @@ fun myKotlinFunction(param: String): Int {
         name: 'list_functions_in_file',
         arguments: {
           filePath: path.join(TEST_PROJECT_DIR, 'test.kt'),
+          language: 'kotlin',
         },
       },
     };
@@ -247,6 +288,99 @@ fun myKotlinFunction(param: String): Int {
         expect.objectContaining({
           id: 'fun myKotlinFunction(param: String): Int', // Kotlinのシグネチャは変わる可能性あり
           signature: 'fun myKotlinFunction(param: String): Int',
+        }),
+      ]),
+    );
+  }, 6000);
+
+  it('should respond to get_function_chunk tool call for complex Kotlin file', async () => {
+    const get_function_chunk = {
+      jsonrpc: '2.0',
+      id: 'get_chunk_kotlin_complex_1',
+      method: 'tools/call',
+      params: {
+        name: 'get_function_chunk',
+        arguments: {
+          filePath: path.join(TEST_PROJECT_DIR, 'test_complex.kt'),
+          functionSignature: 'fun incrementCounter(): Int',
+          language: 'kotlin',
+        },
+      },
+    };
+    serverProcess.stdin.write(`${JSON.stringify(get_function_chunk)}\n\n`);
+
+    await new Promise((resolve) => setTimeout(resolve, 5000));
+
+    const response = JSON.parse(responseMap.get('get_chunk_kotlin_complex_1') || '{}');
+    expect(response.result.content[0].text).toContain('fun incrementCounter(): Int');
+    expect(response.isError).toBeUndefined();
+  }, 6000);
+
+  it('should respond to find_function tool call for complex Kotlin file', async () => {
+    const find_function = {
+      jsonrpc: '2.0',
+      id: 'find_function_kotlin_complex_1',
+      method: 'tools/call',
+      params: {
+        name: 'find_function',
+        arguments: {
+          filePath: path.join(TEST_PROJECT_DIR, 'test_complex.kt'),
+          functionQuery: 'processList',
+          language: 'kotlin',
+        },
+      },
+    };
+    serverProcess.stdin.write(`${JSON.stringify(find_function)}\n\n`);
+
+    await new Promise((resolve) => setTimeout(resolve, 5000));
+
+    const response = JSON.parse(responseMap.get('find_function_kotlin_complex_1') || '{}');
+    const functions = JSON.parse(response.result.content[0].text);
+    expect(functions).toContainEqual(
+      expect.objectContaining({
+        id: 'fun <T> processList(items: List<T>, filter: (T) -> Boolean = { true }): List<T>',
+        signature:
+          'fun <T> processList(items: List<T>, filter: (T) -> Boolean = { true }): List<T>',
+      }),
+    );
+  }, 6000);
+
+  it('should respond to list_functions_in_file tool call for complex Kotlin file', async () => {
+    const list_functions_in_file = {
+      jsonrpc: '2.0',
+      id: 'list_functions_kotlin_complex_1',
+      method: 'tools/call',
+      params: {
+        name: 'list_functions_in_file',
+        arguments: {
+          filePath: path.join(TEST_PROJECT_DIR, 'test_complex.kt'),
+          language: 'kotlin',
+        },
+      },
+    };
+    serverProcess.stdin.write(`${JSON.stringify(list_functions_in_file)}\n\n`);
+
+    await new Promise((resolve) => setTimeout(resolve, 5000));
+
+    const response = JSON.parse(responseMap.get('list_functions_kotlin_complex_1') || '{}');
+    const functions = JSON.parse(response.result.content[0].text);
+
+    expect(functions).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          id: 'fun incrementCounter(): Int',
+          signature: 'fun incrementCounter(): Int',
+        }),
+        expect.objectContaining({
+          id: 'fun <T> processList(items: List<T>, filter: (T) -> Boolean = { true }): List<T>',
+          signature: 'fun <T> processList(items: List<T>, filter: (T) -> Boolean = { true }): List<T>',
+        }),
+        expect.objectContaining({ id: 'fun create(name: String): MyComplexClass', signature: 'fun create(name: String): MyComplexClass' }),
+        expect.objectContaining({ id: 'fun doSomething()', signature: 'fun doSomething()' }),
+        expect.objectContaining({ id: 'fun getInstance()', signature: 'fun getInstance()' }),
+        expect.objectContaining({
+          id: 'fun topLevelFunction(value: String): String',
+          signature: 'fun topLevelFunction(value: String): String',
         }),
       ]),
     );
@@ -285,6 +419,7 @@ fun myKotlinFunction(param: String): Int {
         arguments: {
           filePath: path.join(TEST_PROJECT_DIR, 'test.kt'),
           functionSignature: 'fun myKotlinFunction(param: String): Int',
+          language: 'kotlin',
         },
       },
     };
@@ -431,6 +566,7 @@ fun myKotlinFunction(param: String): Int {
         arguments: {
           filePath: path.join(TEST_PROJECT_DIR, 'test.kt'),
           functionQuery: 'myKotlinFunction',
+          language: 'kotlin',
         },
       },
     };

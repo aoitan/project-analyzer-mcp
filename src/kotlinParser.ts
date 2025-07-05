@@ -94,7 +94,7 @@ export class KotlinParser implements IParser {
         };
 
         if (item.children && item.children.length > 0) {
-          chunk.children = (await Promise.all(item.children.map(processNode))).flat();
+          chunk.children = await Promise.all(item.children.map(processNode));
         }
         return chunk;
       };

@@ -24,7 +24,7 @@ class MockKotlinParser implements IParser {
 
 vi.mock('../parserFactory.js', () => ({
   ParserFactory: {
-    getParser: vi.fn((language: string) => {
+    getParser: vi.fn((filePath: string, language: string) => {
       if (language === 'swift') {
         return new MockSwiftParser();
       } else if (language === 'kotlin') {
@@ -98,7 +98,7 @@ describe('AnalysisService (Unit Tests)', () => {
     await analysisService.analyzeProject(projectPath);
 
     expect(mockGlob).toHaveBeenCalledWith('**/*.swift', { cwd: projectPath, absolute: true });
-    expect(ParserFactory.getParser).toHaveBeenCalledWith('swift');
+    expect(ParserFactory.getParser).toHaveBeenCalledWith(dummySwiftFilePath, 'swift');
     expect(mockParseFile).toHaveBeenCalledWith(dummySwiftFilePath);
     expect(mockFs.writeFile).toHaveBeenCalledWith(
       `./data/chunks/${analysisService['toSafeFileName'](dummySwiftChunk.id)}.json`,
@@ -114,7 +114,7 @@ describe('AnalysisService (Unit Tests)', () => {
     await analysisService.analyzeProject(projectPath);
 
     expect(mockGlob).toHaveBeenCalledWith('**/*.kt', { cwd: projectPath, absolute: true });
-    expect(ParserFactory.getParser).toHaveBeenCalledWith('kotlin');
+    expect(ParserFactory.getParser).toHaveBeenCalledWith(dummyKotlinFilePath, 'kotlin');
     expect(mockParseFile).toHaveBeenCalledWith(dummyKotlinFilePath);
     expect(mockFs.writeFile).toHaveBeenCalledWith(
       `./data/chunks/${analysisService['toSafeFileName'](dummyKotlinChunk.id)}.json`,
@@ -143,37 +143,50 @@ describe('AnalysisService (Unit Tests)', () => {
   });
 
   it('listFunctionsInFile should return list of functions for Swift file', async () => {
+    // analyzeProject内でglobがファイル形式の数だけ呼ばれるので.swiftが複数回積まれないようにする必要がある
+    mockGlob.mockResolvedValueOnce([dummyKotlinFilePath]); // Kotlinファイルのみを返すようにモック
+    mockParseFile.mockResolvedValueOnce([dummyKotlinChunk]); // Kotlinチャンクを返すようにモック
+    const projectPath = '/test/project';
+    await analysisService.analyzeProject(projectPath);
     const functions = await analysisService.listFunctionsInFile(dummySwiftFilePath);
-    expect(ParserFactory.getParser).toHaveBeenCalledWith('swift');
+    expect(ParserFactory.getParser).toHaveBeenCalledWith(dummySwiftFilePath, 'swift');
     expect(mockParseFile).toHaveBeenCalledWith(dummySwiftFilePath);
     expect(functions).toEqual([{ id: dummySwiftChunk.id, signature: dummySwiftChunk.signature }]);
   });
 
   it('listFunctionsInFile should return list of functions for Kotlin file', async () => {
+    mockGlob.mockResolvedValueOnce([dummyKotlinFilePath]); // Kotlinファイルのみを返すようにモック
     mockParseFile.mockResolvedValueOnce([dummyKotlinChunk]); // Kotlinチャンクを返すようにモック
+    const projectPath = '/test/project';
+    await analysisService.analyzeProject(projectPath);
     const functions = await analysisService.listFunctionsInFile(dummyKotlinFilePath);
-    expect(ParserFactory.getParser).toHaveBeenCalledWith('kotlin');
+    expect(ParserFactory.getParser).toHaveBeenCalledWith(dummyKotlinFilePath, 'kotlin');
     expect(mockParseFile).toHaveBeenCalledWith(dummyKotlinFilePath);
     expect(functions).toEqual([{ id: dummyKotlinChunk.id, signature: dummyKotlinChunk.signature }]);
   });
 
   it('getFunctionChunk should return function content for Swift file', async () => {
+    const projectPath = '/test/project';
+    await analysisService.analyzeProject(projectPath);
     const content = await analysisService.getFunctionChunk(
       dummySwiftFilePath,
       dummySwiftChunk.signature,
     );
-    expect(ParserFactory.getParser).toHaveBeenCalledWith('swift');
+    expect(ParserFactory.getParser).toHaveBeenCalledWith(dummySwiftFilePath, 'swift');
     expect(mockParseFile).toHaveBeenCalledWith(dummySwiftFilePath);
     expect(content).toEqual({ content: dummySwiftChunk.content });
   });
 
   it('getFunctionChunk should return function content for Kotlin file', async () => {
+    mockGlob.mockResolvedValueOnce([dummyKotlinFilePath]); // Kotlinファイルのみを返すようにモック
     mockParseFile.mockResolvedValueOnce([dummyKotlinChunk]); // Kotlinチャンクを返すようにモック
+    const projectPath = '/test/project';
+    await analysisService.analyzeProject(projectPath);
     const content = await analysisService.getFunctionChunk(
       dummyKotlinFilePath,
       dummyKotlinChunk.signature,
     );
-    expect(ParserFactory.getParser).toHaveBeenCalledWith('kotlin');
+    expect(ParserFactory.getParser).toHaveBeenCalledWith(dummyKotlinFilePath, 'kotlin');
     expect(mockParseFile).toHaveBeenCalledWith(dummyKotlinFilePath);
     expect(content).toEqual({ content: dummyKotlinChunk.content });
   });

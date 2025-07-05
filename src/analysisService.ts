@@ -29,22 +29,32 @@ export class AnalysisService {
     const allFiles = [...swiftFiles, ...kotlinFiles];
     const allChunks: CodeChunk[] = [];
 
+    const processAndSaveChunks = async (chunkList: CodeChunk[]) => {
+      for (const chunk of chunkList) {
+        allChunks.push(chunk);
+        await this.saveChunk(chunk);
+        if (chunk.children && chunk.children.length > 0) {
+          await processAndSaveChunks(chunk.children);
+        }
+      }
+    };
+
+    console.log(`files: ${allFiles}`);
     for (const file of allFiles) {
+      console.log(`file: ${file}`);
       let parser: IParser;
       if (file.endsWith('.swift')) {
-        parser = ParserFactory.getParser('swift');
+        parser = ParserFactory.getParser(file, 'swift');
       } else if (file.endsWith('.kt')) {
-        parser = ParserFactory.getParser('kotlin');
+        parser = ParserFactory.getParser(file, 'kotlin');
       } else {
         logger.warn(`Unsupported file type: ${file}`);
         continue;
       }
       const chunks = await parser.parseFile(file);
-      for (const chunk of chunks) {
-        allChunks.push(chunk);
-        await this.saveChunk(chunk);
-      }
+      await processAndSaveChunks(chunks);
     }
+    //console.log(`allChunks: ${JSON.stringify(allChunks)}`);
     this.parsedProjects.set(projectPath, allChunks);
   }
 
@@ -75,17 +85,14 @@ export class AnalysisService {
     filePath: string,
     functionQuery: string,
   ): Promise<{ id: string; signature: string }[]> {
-    let parser: IParser;
-    if (filePath.endsWith('.swift')) {
-      parser = ParserFactory.getParser('swift');
-    } else if (filePath.endsWith('.kt')) {
-      parser = ParserFactory.getParser('kotlin');
-    } else {
-      logger.warn(`Unsupported file type for function search: ${filePath}`);
-      return [];
+    const allChunksInFile: CodeChunk[] = [];
+
+    for (const projectChunks of this.parsedProjects.values()) {
+      const chunksInFile = projectChunks.filter((chunk) => chunk.filePath === filePath);
+      allChunksInFile.push(...chunksInFile);
     }
-    const codeChunks = await parser.parseFile(filePath);
-    const matchingFunctions = codeChunks.filter(
+
+    const matchingFunctions = allChunksInFile.filter(
       (chunk) => chunk.type.includes('function') && chunk.signature.includes(functionQuery), // signature で完全一致を試みる
     );
     return matchingFunctions.map((chunk) => ({ id: chunk.id, signature: chunk.signature }));
@@ -113,19 +120,16 @@ export class AnalysisService {
     }
   }
 
-  async listFunctionsInFile(filePath: string): Promise<{ signature: string }[]> {
+  async listFunctionsInFile(filePath: string): Promise<{ id: string; signature: string }[]> {
     logger.info(`AnalysisService: Listing functions in file: ${filePath}`);
-    let parser: IParser;
-    if (filePath.endsWith('.swift')) {
-      parser = ParserFactory.getParser('swift');
-    } else if (filePath.endsWith('.kt')) {
-      parser = ParserFactory.getParser('kotlin');
-    } else {
-      logger.warn(`Unsupported file type for function listing: ${filePath}`);
-      return [];
+    const allChunksInFile: CodeChunk[] = [];
+
+    for (const projectChunks of this.parsedProjects.values()) {
+      const chunksInFile = projectChunks.filter((chunk) => chunk.filePath === filePath);
+      allChunksInFile.push(...chunksInFile);
     }
-    const codeChunks = await parser.parseFile(filePath);
-    return codeChunks
+
+    return allChunksInFile
       .filter((chunk) => chunk.type.includes('function'))
       .map((chunk) => ({
         id: chunk.id,
@@ -138,22 +142,14 @@ export class AnalysisService {
     functionSignature: string,
   ): Promise<{ content: string } | null> {
     logger.info(`AnalysisService: Getting function chunk for ${functionSignature} in ${filePath}`);
-    let parser: IParser;
-    if (filePath.endsWith('.swift')) {
-      parser = ParserFactory.getParser('swift');
-    } else if (filePath.endsWith('.kt')) {
-      parser = ParserFactory.getParser('kotlin');
-    } else {
-      logger.warn(`Unsupported file type for function chunk retrieval: ${filePath}`);
-      return null;
+    for (const projectChunks of this.parsedProjects.values()) {
+      const targetFunction = projectChunks.find(
+        (chunk) => chunk.filePath === filePath && chunk.signature === functionSignature,
+      );
+      if (targetFunction) {
+        return { content: targetFunction.content };
+      }
     }
-    const codeChunks = await parser.parseFile(filePath);
-    const targetFunction = codeChunks.find((chunk) => chunk.signature === functionSignature);
-
-    if (targetFunction) {
-      return { content: targetFunction.content };
-    } else {
-      return null;
-    }
+    return null;
   }
 }
