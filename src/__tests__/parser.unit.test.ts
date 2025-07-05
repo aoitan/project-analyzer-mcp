@@ -1,4 +1,4 @@
-import { SwiftParser, CodeChunk } from '../parser.js';
+import { SwiftParser, CodeChunk } from '../swiftParser.js';
 import { exec } from 'child_process';
 import * as fs from 'fs/promises';
 import { vi } from 'vitest';

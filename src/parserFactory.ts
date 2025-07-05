@@ -1,7 +1,7 @@
 // src/parserFactory.ts
 
 import { IParser } from './interfaces/parser.js';
-import { SwiftParser } from './parser.js';
+import { SwiftParser } from './swiftParser.js';
 import { KotlinParser } from './kotlinParser.js';
 
 export class ParserFactory {
