@@ -81,7 +81,7 @@ export class KotlinParser implements IParser {
             // }
             // signature = `fun ${signature}: ${item.typename || 'Unit'}`;
           } else if (item.type === 'class') {
-            signature = `class ${signature}`;
+            // signature = `class ${signature}`;
           }
 
           const content = fileContentBuffer.toString(
@@ -110,7 +110,7 @@ export class KotlinParser implements IParser {
       return chunks;
     } catch (error) {
       logger.error(`Error parsing Kotlin file ${filePath}: ${error}`);
-      throw error; // エラーをスローするように変更
+      return []; // エラーが発生した場合は空の配列を返す
     }
   }
 

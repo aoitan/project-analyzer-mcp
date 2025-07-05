@@ -834,10 +834,9 @@ func dummyFunction2() {
     );
 
     const filePath = '/path/to/error.swift';
-    const chunks = await parser.parseFile(filePath);
+    await expect(parser.parseFile(filePath)).resolves.toEqual([]);
 
     expect(parser['exec']).toHaveBeenCalledWith('sourcekitten', ['structure', '--file', filePath]);
-    expect(chunks).toEqual([]);
     console.log('[Test] parseFile error test: End');
   });
 
@@ -853,10 +852,9 @@ func dummyFunction2() {
     );
 
     const filePath = '/path/to/exec_error.swift';
-    const chunks = await parser.parseFile(filePath);
+    await expect(parser.parseFile(filePath)).resolves.toEqual([]);
 
     expect(parser['exec']).toHaveBeenCalledWith('sourcekitten', ['structure', '--file', filePath]);
-    expect(chunks).toEqual([]);
   });
 
   // getFunctionContent のテストは parseFile のテストでカバーされるため削除

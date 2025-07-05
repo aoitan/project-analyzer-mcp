@@ -94,9 +94,9 @@ class MyClass {
     console.log(`chunks:\n${JSON.stringify(chunks, null, 2)}`);
 
     expect(chunks).toHaveLength(2); // main function and MyClass
-    expect(chunks[0].id).toBe('fun main(): Unit');
+    expect(chunks[0].id).toBe('fun main()');
     expect(chunks[0].name).toBe('main');
-    expect(chunks[0].signature).toBe('fun main(): Unit');
+    expect(chunks[0].signature).toBe('fun main()');
     expect(chunks[0].type).toBe('source.lang.kotlin.decl.function'); // typeを修正
     expect(chunks[0].content).toBe(`fun main() {
     println("Hello, Kotlin!")

@@ -61,7 +61,12 @@ export function createMcpServer() {
         return { content: [{ type: 'text', text: JSON.stringify(functions, null, 2) }] };
       } catch (error) {
         return {
-          content: [{ type: 'text', text: `Error: ${error instanceof Error ? error.message : String(error)}` }],
+          content: [
+            {
+              type: 'text',
+              text: `Error: ${error instanceof Error ? error.message : String(error)}`,
+            },
+          ],
           isError: true,
         };
       }
@@ -90,7 +95,12 @@ export function createMcpServer() {
         }
       } catch (error) {
         return {
-          content: [{ type: 'text', text: `Error: ${error instanceof Error ? error.message : String(error)}` }],
+          content: [
+            {
+              type: 'text',
+              text: `Error: ${error instanceof Error ? error.message : String(error)}`,
+            },
+          ],
           isError: true,
         };
       }
