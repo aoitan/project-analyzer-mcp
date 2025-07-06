@@ -41,6 +41,10 @@
 
 - `SwiftParser` のコンストラクタにおける不要な型キャストを解消し、型安全性を向上させます。（詳細は [コンストラクタにおける型キャストの使用](issues/type_casting_in_constructor.md) を参照）
 
+### 1.10. `analyze_project` のパフォーマンスと粒度の改善
+
+- `analyze_project` ツールのパフォーマンス問題に対処し、より粒度の細かいコード解析ツール（例: `analyze_file`）の導入を検討します。（詳細は [`analyze_project` のパフォーマンスと粒度の改善](issues/analyze_project_performance_and_granularity.md) を参照）
+
 ## フェーズ2: 言語サポートの拡張 (中期)
 
 ### 2.1. モジュール式パーサーの設計 (解決済み)
