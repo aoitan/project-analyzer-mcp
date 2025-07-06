@@ -6,6 +6,97 @@ import * as path from 'path';
 import logger from './utils/logger.js';
 import { cacheManager } from './cache/CacheManager.js'; // CacheManagerをインポート
 
+const MAX_CHUNK_LINES = 50; // ページングを適用する閾値（行数）
+
+interface PagingInfo {
+  filePath: string;
+  chunkId: string;
+  startLine: number;
+  endLine: number;
+  pageSize: number;
+  totalLines: number;
+}
+
+function generatePageToken(pagingInfo: PagingInfo): string {
+  return Buffer.from(JSON.stringify(pagingInfo)).toString('base64');
+}
+
+function parsePageToken(token: string): PagingInfo | null {
+  try {
+    return JSON.parse(Buffer.from(token, 'base64').toString('utf-8'));
+  } catch (e) {
+    logger.error(`Failed to parse page token: ${token}`, e);
+    return null;
+  }
+}
+
+// Helper to apply paging to a chunk
+function applyPaging(
+  originalChunk: CodeChunk,
+  pageSize: number,
+  requestedPageToken?: string,
+): CodeChunk {
+  const lines = originalChunk.content.split('\n');
+  const totalLines = lines.length;
+  const totalPages = Math.ceil(totalLines / pageSize);
+
+  let currentPage = 1;
+  let startLine = 0;
+  let endLine = totalLines;
+
+  if (requestedPageToken) {
+    const pagingInfo = parsePageToken(requestedPageToken);
+    if (pagingInfo && pagingInfo.chunkId === originalChunk.id) {
+      currentPage = Math.floor(pagingInfo.startLine / pageSize) + 1;
+      startLine = pagingInfo.startLine;
+      endLine = pagingInfo.endLine;
+    }
+  }
+
+  // Adjust start/end lines based on current page and page size
+  startLine = (currentPage - 1) * pageSize;
+  endLine = Math.min(startLine + pageSize, totalLines);
+
+  const paginatedContent = lines.slice(startLine, endLine).join('\n');
+
+  const nextPageToken =
+    currentPage < totalPages
+      ? generatePageToken({
+          filePath: originalChunk.filePath,
+          chunkId: originalChunk.id,
+          startLine: endLine,
+          endLine: Math.min(endLine + pageSize, totalLines),
+          pageSize,
+          totalLines,
+        })
+      : undefined;
+
+  const prevPageToken =
+    currentPage > 1
+      ? generatePageToken({
+          filePath: originalChunk.filePath,
+          chunkId: originalChunk.id,
+          startLine: Math.max(0, startLine - pageSize),
+          endLine: startLine,
+          pageSize,
+          totalLines,
+        })
+      : undefined;
+
+  return {
+    ...originalChunk,
+    content: paginatedContent,
+    isPartial: totalLines > pageSize, // Mark as partial if original was larger than one page
+    totalLines: totalLines,
+    currentPage: currentPage,
+    totalPages: totalPages,
+    nextPageToken: nextPageToken,
+    prevPageToken: prevPageToken,
+    startLine: originalChunk.startLine + startLine, // Adjust startLine relative to original file
+    endLine: originalChunk.startLine + endLine -1, // Adjust endLine relative to original file
+  };
+}
+
 export class AnalysisService {
   private chunksDir: string;
 
@@ -14,7 +105,7 @@ export class AnalysisService {
   }
 
   private toSafeFileName(name: string): string {
-    return name.replace(/[^a-zA-Z0-9-_.]/g, '_');
+    return name.replace(/[^a-zA-Z0-9-_.\/]/g, '_');
   }
 
   async analyzeProject(projectPath: string): Promise<void> {
@@ -53,10 +144,32 @@ export class AnalysisService {
     }
   }
 
-  async getChunk(chunkId: string): Promise<{ content: string } | null> {
+  async getChunk(
+    chunkId: string,
+    pageSize: number = MAX_CHUNK_LINES,
+    pageToken?: string,
+  ): Promise<{ content: string; isPartial?: boolean; totalLines?: number; currentPage?: number; totalPages?: number; nextPageToken?: string; prevPageToken?: string; } | null> {
     logger.info(`AnalysisService: Getting chunk: ${chunkId}`);
-    const chunk = await cacheManager.get(chunkId); // CacheManager経由で取得
-    return chunk ? { content: chunk.content } : null;
+    const chunk = await cacheManager.get(chunkId);
+    if (!chunk) {
+      return null;
+    }
+
+    const lines = chunk.content.split('\n');
+    if (lines.length > pageSize || pageToken) {
+      const paginatedChunk = applyPaging(chunk, pageSize, pageToken);
+      return {
+        content: paginatedChunk.content,
+        isPartial: paginatedChunk.isPartial,
+        totalLines: paginatedChunk.totalLines,
+        currentPage: paginatedChunk.currentPage,
+        totalPages: paginatedChunk.totalPages,
+        nextPageToken: paginatedChunk.nextPageToken,
+        prevPageToken: paginatedChunk.prevPageToken,
+      };
+    }
+
+    return { content: chunk.content };
   }
 
   private async getSwiftFiles(projectPath: string): Promise<string[]> {
@@ -112,12 +225,27 @@ export class AnalysisService {
   async getFunctionChunk(
     filePath: string,
     functionSignature: string,
-  ): Promise<{ content: string } | null> {
+    pageSize: number = MAX_CHUNK_LINES,
+    pageToken?: string,
+  ): Promise<{ content: string; isPartial?: boolean; totalLines?: number; currentPage?: number; totalPages?: number; nextPageToken?: string; prevPageToken?: string; } | null> {
     logger.info(`AnalysisService: Getting function chunk for ${functionSignature} in ${filePath}`);
     const allChunkIds = await cacheManager.listAllChunkIds();
     for (const chunkId of allChunkIds) {
       const chunk = await cacheManager.get(chunkId);
       if (chunk && chunk.filePath === filePath && chunk.signature === functionSignature) {
+        const lines = chunk.content.split('\n');
+        if (lines.length > pageSize || pageToken) {
+          const paginatedChunk = applyPaging(chunk, pageSize, pageToken);
+          return {
+            content: paginatedChunk.content,
+            isPartial: paginatedChunk.isPartial,
+            totalLines: paginatedChunk.totalLines,
+            currentPage: paginatedChunk.currentPage,
+            totalPages: paginatedChunk.totalPages,
+            nextPageToken: paginatedChunk.nextPageToken,
+            prevPageToken: paginatedChunk.prevPageToken,
+          };
+        }
         return { content: chunk.content };
       }
     }

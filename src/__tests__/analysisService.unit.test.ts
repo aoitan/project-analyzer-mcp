@@ -84,6 +84,20 @@ describe('AnalysisService (Unit Tests)', () => {
     calls: [],
   };
 
+  const dummyLargeChunk: CodeChunk = {
+    id: 'largeFunction()',
+    name: 'largeFunction',
+    signature: 'func largeFunction() -> Void',
+    type: 'source.lang.swift.decl.function.free',
+    content: Array(100).fill('line').join('\n'), // 100行の巨大チャンク
+    filePath: '/test/project/large.swift',
+    startLine: 1,
+    endLine: 100,
+    offset: 0,
+    length: 1000,
+    calls: [],
+  };
+
   beforeEach(() => {
     analysisService = new AnalysisService();
     vi.clearAllMocks();
@@ -146,6 +160,37 @@ describe('AnalysisService (Unit Tests)', () => {
     expect(chunk).toEqual({ content: dummySwiftChunk.content });
   });
 
+  it('getChunk should return paginated chunk if content is large', async () => {
+    mockCacheManager.get.mockResolvedValueOnce(dummyLargeChunk);
+
+    const chunk = await analysisService.getChunk(dummyLargeChunk.id, 10); // pageSize = 10
+    expect(chunk?.isPartial).toBe(true);
+    expect(chunk?.content.split('\n').length).toBe(10);
+    expect(chunk?.totalLines).toBe(100);
+    expect(chunk?.currentPage).toBe(1);
+    expect(chunk?.totalPages).toBe(10);
+    expect(chunk?.nextPageToken).toBeDefined();
+    expect(chunk?.prevPageToken).toBeUndefined();
+  });
+
+  it('getChunk should return next page with pageToken', async () => {
+    mockCacheManager.get.mockResolvedValueOnce(dummyLargeChunk);
+
+    const firstPage = await analysisService.getChunk(dummyLargeChunk.id, 10); // pageSize = 10
+    expect(firstPage?.nextPageToken).toBeDefined();
+
+    mockCacheManager.get.mockResolvedValueOnce(dummyLargeChunk);
+    const secondPage = await analysisService.getChunk(
+      dummyLargeChunk.id,
+      10,
+      firstPage?.nextPageToken,
+    );
+    expect(secondPage?.isPartial).toBe(true);
+    expect(secondPage?.content.split('\n').length).toBe(10);
+    expect(secondPage?.currentPage).toBe(2);
+    expect(secondPage?.prevPageToken).toBeDefined();
+  });
+
   it('listFunctionsInFile should return list of functions for Swift file', async () => {
     mockCacheManager.listAllChunkIds.mockResolvedValueOnce([dummySwiftChunk.id]);
     mockCacheManager.get.mockResolvedValueOnce(dummySwiftChunk);
@@ -190,5 +235,48 @@ describe('AnalysisService (Unit Tests)', () => {
     expect(mockCacheManager.listAllChunkIds).toHaveBeenCalled();
     expect(mockCacheManager.get).toHaveBeenCalledWith(dummyKotlinChunk.id);
     expect(content).toEqual({ content: dummyKotlinChunk.content });
+  });
+
+  it('getFunctionChunk should return paginated chunk if content is large', async () => {
+    mockCacheManager.listAllChunkIds.mockResolvedValueOnce([dummyLargeChunk.id]);
+    mockCacheManager.get.mockResolvedValueOnce(dummyLargeChunk);
+
+    const chunk = await analysisService.getFunctionChunk(
+      dummyLargeChunk.filePath,
+      dummyLargeChunk.signature,
+      10,
+    ); // pageSize = 10
+    expect(chunk?.isPartial).toBe(true);
+    expect(chunk?.content.split('\n').length).toBe(10);
+    expect(chunk?.totalLines).toBe(100);
+    expect(chunk?.currentPage).toBe(1);
+    expect(chunk?.totalPages).toBe(10);
+    expect(chunk?.nextPageToken).toBeDefined();
+    expect(chunk?.prevPageToken).toBeUndefined();
+  });
+
+  it('getFunctionChunk should return next page with pageToken', async () => {
+    mockCacheManager.listAllChunkIds.mockResolvedValueOnce([dummyLargeChunk.id]);
+    mockCacheManager.get.mockResolvedValueOnce(dummyLargeChunk);
+
+    const firstPage = await analysisService.getFunctionChunk(
+      dummyLargeChunk.filePath,
+      dummyLargeChunk.signature,
+      10,
+    ); // pageSize = 10
+    expect(firstPage?.nextPageToken).toBeDefined();
+
+    mockCacheManager.listAllChunkIds.mockResolvedValueOnce([dummyLargeChunk.id]);
+    mockCacheManager.get.mockResolvedValueOnce(dummyLargeChunk);
+    const secondPage = await analysisService.getFunctionChunk(
+      dummyLargeChunk.filePath,
+      dummyLargeChunk.signature,
+      10,
+      firstPage?.nextPageToken,
+    );
+    expect(secondPage?.isPartial).toBe(true);
+    expect(secondPage?.content.split('\n').length).toBe(10);
+    expect(secondPage?.currentPage).toBe(2);
+    expect(secondPage?.prevPageToken).toBeDefined();
   });
 });

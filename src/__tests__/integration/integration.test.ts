@@ -131,6 +131,113 @@ fun topLevelFunction(value: String): String {
 }
 `,
     );
+    await fs.writeFile(
+      path.join(TEST_PROJECT_DIR, 'test_large_function.swift'),
+      `func largeFunction() -> Void {
+    // This is a large function for testing paging.
+    // Line 1
+    // Line 2
+    // Line 3
+    // Line 4
+    // Line 5
+    // Line 6
+    // Line 7
+    // Line 8
+    // Line 9
+    // Line 10
+    // Line 11
+    // Line 12
+    // Line 13
+    // Line 14
+    // Line 15
+    // Line 16
+    // Line 17
+    // Line 18
+    // Line 19
+    // Line 20
+    // Line 21
+    // Line 22
+    // Line 23
+    // Line 24
+    // Line 25
+    // Line 26
+    // Line 27
+    // Line 28
+    // Line 29
+    // Line 30
+    // Line 31
+    // Line 32
+    // Line 33
+    // Line 34
+    // Line 35
+    // Line 36
+    // Line 37
+    // Line 38
+    // Line 39
+    // Line 40
+    // Line 41
+    // Line 42
+    // Line 43
+    // Line 44
+    // Line 45
+    // Line 46
+    // Line 47
+    // Line 48
+    // Line 49
+    // Line 50
+    // Line 51
+    // Line 52
+    // Line 53
+    // Line 54
+    // Line 55
+    // Line 56
+    // Line 57
+    // Line 58
+    // Line 59
+    // Line 60
+    // Line 61
+    // Line 62
+    // Line 63
+    // Line 64
+    // Line 65
+    // Line 66
+    // Line 67
+    // Line 68
+    // Line 69
+    // Line 70
+    // Line 71
+    // Line 72
+    // Line 73
+    // Line 74
+    // Line 75
+    // Line 76
+    // Line 77
+    // Line 78
+    // Line 79
+    // Line 80
+    // Line 81
+    // Line 82
+    // Line 83
+    // Line 84
+    // Line 85
+    // Line 86
+    // Line 87
+    // Line 88
+    // Line 89
+    // Line 90
+    // Line 91
+    // Line 92
+    // Line 93
+    // Line 94
+    // Line 95
+    // Line 96
+    // Line 97
+    // Line 98
+    // Line 99
+    // Line 100
+}
+`,
+    );
 
     // 既存のチャンクディレクトリをクリーンアップ
     await fs.rm(CHUNKS_DIR, { recursive: true, force: true });
@@ -592,4 +699,171 @@ fun topLevelFunction(value: String): String {
       ]),
     );
   }, 5000);
+
+  it('should respond to get_function_chunk tool call with paging for large function', async () => {
+    const get_function_chunk = {
+      jsonrpc: '2.0',
+      id: 'get_chunk_large_function_1',
+      method: 'tools/call',
+      params: {
+        name: 'get_function_chunk',
+        arguments: {
+          filePath: path.join(TEST_PROJECT_DIR, 'test_large_function.swift'),
+          functionSignature: 'func largeFunction() -> Void',
+          pageSize: 10,
+        },
+      },
+    };
+    serverProcess.stdin.write(`${JSON.stringify(get_function_chunk)}\n\n`);
+
+    await new Promise((resolve) => setTimeout(resolve, 1000));
+
+    const response = JSON.parse(responseMap.get('get_chunk_large_function_1') || '{}');
+    const parsedContent = JSON.parse(response.result.content[0].text);
+
+    expect(parsedContent.isPartial).toBe(true);
+    expect(parsedContent.content.split('\n').length).toBe(10);
+    expect(parsedContent.totalLines).toBe(102); // 100 lines + func declaration + closing brace
+    expect(parsedContent.currentPage).toBe(1);
+    expect(parsedContent.totalPages).toBe(11); // 102 lines / 10 lines per page = 10.2 -> 11 pages
+    expect(parsedContent.nextPageToken).toBeDefined();
+    expect(parsedContent.prevPageToken).toBeUndefined();
+  }, 3000);
+
+  it('should respond to get_function_chunk tool call with next page using pageToken', async () => {
+    const get_function_chunk_first_page = {
+      jsonrpc: '2.0',
+      id: 'get_chunk_large_function_first_page',
+      method: 'tools/call',
+      params: {
+        name: 'get_function_chunk',
+        arguments: {
+          filePath: path.join(TEST_PROJECT_DIR, 'test_large_function.swift'),
+          functionSignature: 'func largeFunction() -> Void',
+          pageSize: 10,
+        },
+      },
+    };
+    serverProcess.stdin.write(`${JSON.stringify(get_function_chunk_first_page)}\n\n`);
+
+    await new Promise((resolve) => setTimeout(resolve, 1000));
+
+    const firstPageResponse = JSON.parse(
+      responseMap.get('get_chunk_large_function_first_page') || '{}',
+    );
+    const firstPageContent = JSON.parse(firstPageResponse.result.content[0].text);
+    const nextPageToken = firstPageContent.nextPageToken;
+
+    expect(nextPageToken).toBeDefined();
+
+    const get_function_chunk_second_page = {
+      jsonrpc: '2.0',
+      id: 'get_chunk_large_function_second_page',
+      method: 'tools/call',
+      params: {
+        name: 'get_function_chunk',
+        arguments: {
+          filePath: path.join(TEST_PROJECT_DIR, 'test_large_function.swift'),
+          functionSignature: 'func largeFunction() -> Void',
+          pageSize: 10,
+          pageToken: nextPageToken,
+        },
+      },
+    };
+    serverProcess.stdin.write(`${JSON.stringify(get_function_chunk_second_page)}\n\n`);
+
+    await new Promise((resolve) => setTimeout(resolve, 1000));
+
+    const secondPageResponse = JSON.parse(
+      responseMap.get('get_chunk_large_function_second_page') || '{}',
+    );
+    const secondPageContent = JSON.parse(secondPageResponse.result.content[0].text);
+
+    expect(secondPageContent.isPartial).toBe(true);
+    expect(secondPageContent.content.split('\n').length).toBe(10);
+    expect(secondPageContent.currentPage).toBe(2);
+    expect(secondPageContent.prevPageToken).toBeDefined();
+  }, 6000);
+
+  it('should respond to get_chunk tool call with paging for large chunk', async () => {
+    const get_chunk = {
+      jsonrpc: '2.0',
+      id: 'get_chunk_large_chunk_1',
+      method: 'tools/call',
+      params: {
+        name: 'get_chunk',
+        arguments: {
+          chunkId: 'func largeFunction() -> Void',
+          pageSize: 10,
+        },
+      },
+    };
+    serverProcess.stdin.write(`${JSON.stringify(get_chunk)}\n\n`);
+
+    await new Promise((resolve) => setTimeout(resolve, 1000));
+
+    const response = JSON.parse(responseMap.get('get_chunk_large_chunk_1') || '{}');
+    const parsedContent = JSON.parse(response.result.content[0].text);
+
+    expect(parsedContent.isPartial).toBe(true);
+    expect(parsedContent.content.split('\n').length).toBe(10);
+    expect(parsedContent.totalLines).toBe(102); // 100 lines + func declaration + closing brace
+    expect(parsedContent.currentPage).toBe(1);
+    expect(parsedContent.totalPages).toBe(11); // 102 lines / 10 lines per page = 10.2 -> 11 pages
+    expect(parsedContent.nextPageToken).toBeDefined();
+    expect(parsedContent.prevPageToken).toBeUndefined();
+  }, 3000);
+
+  it('should respond to get_chunk tool call with next page using pageToken', async () => {
+    const get_chunk_first_page = {
+      jsonrpc: '2.0',
+      id: 'get_chunk_large_chunk_first_page',
+      method: 'tools/call',
+      params: {
+        name: 'get_chunk',
+        arguments: {
+          chunkId: 'func largeFunction() -> Void',
+          pageSize: 10,
+        },
+      },
+    };
+    serverProcess.stdin.write(`${JSON.stringify(get_chunk_first_page)}\n\n`);
+
+    await new Promise((resolve) => setTimeout(resolve, 1000));
+
+    const firstPageResponse = JSON.parse(
+      responseMap.get('get_chunk_large_chunk_first_page') || '{}',
+    );
+    const firstPageContent = JSON.parse(firstPageResponse.result.content[0].text);
+    const nextPageToken = firstPageContent.nextPageToken;
+
+    expect(nextPageToken).toBeDefined();
+
+    const get_chunk_second_page = {
+      jsonrpc: '2.0',
+      id: 'get_chunk_large_chunk_second_page',
+      method: 'tools/call',
+      params: {
+        name: 'get_chunk',
+        arguments: {
+          chunkId: 'func largeFunction() -> Void',
+          pageSize: 10,
+          pageToken: nextPageToken,
+        },
+      },
+    };
+    serverProcess.stdin.write(`${JSON.stringify(get_chunk_second_page)}\n\n`);
+
+    await new Promise((resolve) => setTimeout(resolve, 1000));
+
+    const secondPageResponse = JSON.parse(
+      responseMap.get('get_chunk_large_chunk_second_page') || '{}',
+    );
+    const secondPageContent = JSON.parse(secondPageResponse.result.content[0].text);
+
+    expect(secondPageContent.isPartial).toBe(true);
+    expect(secondPageContent.content.split('\n').length).toBe(10);
+    expect(secondPageContent.currentPage).toBe(2);
+    expect(secondPageContent.prevPageToken).toBeDefined();
+  }, 6000);
 });
