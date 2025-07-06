@@ -373,9 +373,13 @@ fun topLevelFunction(value: String): String {
         }),
         expect.objectContaining({
           id: 'fun <T> processList(items: List<T>, filter: (T) -> Boolean = { true }): List<T>',
-          signature: 'fun <T> processList(items: List<T>, filter: (T) -> Boolean = { true }): List<T>',
+          signature:
+            'fun <T> processList(items: List<T>, filter: (T) -> Boolean = { true }): List<T>',
         }),
-        expect.objectContaining({ id: 'fun create(name: String): MyComplexClass', signature: 'fun create(name: String): MyComplexClass' }),
+        expect.objectContaining({
+          id: 'fun create(name: String): MyComplexClass',
+          signature: 'fun create(name: String): MyComplexClass',
+        }),
         expect.objectContaining({ id: 'fun doSomething()', signature: 'fun doSomething()' }),
         expect.objectContaining({ id: 'fun getInstance()', signature: 'fun getInstance()' }),
         expect.objectContaining({

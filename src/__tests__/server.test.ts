@@ -145,13 +145,27 @@ describe('MCP Server Tools', () => {
         {
           type: 'text',
           text: JSON.stringify(
-            [
-              {
-                id: 'func dummyFunction1(param:) -> Int',
-                signature: 'func dummyFunction1(param:) -> Int',
+            {
+              description: `/Users/ma-yabushita/00_work/study/ai/toy/src/__tests__/dummy.swift に含まれる関数の一覧です。2 個の関数が見つかりました。`,
+              suggested_actions: [
+                `get_function_chunk: 特定の関数のコードを取得する`,
+                `find_function: このファイル内で特定の関数を検索する`,
+              ],
+              follow_up_questions: [
+                `どの関数のコードを見たいですか?`,
+                `このファイル内で特定の関数を検索しますか?`,
+              ],
+              data: {
+                filePath: `/Users/ma-yabushita/00_work/study/ai/toy/src/__tests__/dummy.swift`,
+                functions: [
+                  {
+                    id: 'func dummyFunction1(param:) -> Int',
+                    signature: 'func dummyFunction1(param:) -> Int',
+                  },
+                  { id: 'func dummyFunction2()', signature: 'func dummyFunction2()' },
+                ],
               },
-              { id: 'func dummyFunction2()', signature: 'func dummyFunction2()' },
-            ],
+            },
             null,
             2,
           ),
@@ -179,7 +193,26 @@ describe('MCP Server Tools', () => {
       content: [
         {
           type: 'text',
-          text: 'func dummyFunction1(param: String) -> Int {\n    return 1\n}',
+          text: JSON.stringify(
+            {
+              description: `/Users/ma-yabushita/00_work/study/ai/toy/src/__tests__/dummy.swift にある func dummyFunction1(param:) -> Int 関数のコードチャンクです。`,
+              suggested_actions: [
+                `analyze_dependencies: この関数の依存関係を解析する`,
+                `get_dependencies: この関数の呼び出し元や呼び出し先を調べる`,
+              ],
+              follow_up_questions: [
+                `この関数について他に知りたいことはありますか?`,
+                `この関数の依存関係を調べますか?`,
+              ],
+              data: {
+                filePath: `/Users/ma-yabushita/00_work/study/ai/toy/src/__tests__/dummy.swift`,
+                functionSignature: `func dummyFunction1(param:) -> Int`,
+                codeContent: `func dummyFunction1(param: String) -> Int {\n    return 1\n}`,
+              },
+            },
+            null,
+            2,
+          ),
         },
       ],
     });
