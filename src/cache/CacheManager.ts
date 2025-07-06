@@ -1,4 +1,4 @@
-import { CodeChunk } from '../types';
+import { CodeChunk } from '../interfaces/parser.js';
 import * as fs from 'fs/promises';
 import * as path from 'path';
 
