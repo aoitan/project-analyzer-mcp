@@ -222,7 +222,8 @@ fun topLevelFunction(value: String): String {
     await new Promise((resolve) => setTimeout(resolve, 5000));
 
     const response = JSON.parse(responseMap.get('analyze_project_2') || '{}'); // Mapから取得
-    expect(response.result.content[0].text).toContain('Project analysis completed.');
+    const parsedContent = JSON.parse(response.result.content[0].text);
+    expect(parsedContent.data.projectPath).toEqual(TEST_PROJECT_DIR);
     expect(response.isError).toBeUndefined();
 
     // チャンクファイルが生成されたことを確認
@@ -250,7 +251,7 @@ fun topLevelFunction(value: String): String {
     await new Promise((resolve) => setTimeout(resolve, 1000));
 
     const response = JSON.parse(responseMap.get('list_functions_swift_1') || '{}'); // Mapから取得
-    const functions = JSON.parse(response.result.content[0].text);
+    const functions = JSON.parse(response.result.content[0].text).data.functions;
     expect(functions).toEqual(
       expect.arrayContaining([
         expect.objectContaining({
@@ -259,7 +260,7 @@ fun topLevelFunction(value: String): String {
         }),
       ]),
     );
-  }, 5000);
+  }, 3000);
 
   it('should respond to list_functions_in_file tool call for Kotlin', async () => {
     const list_functions_in_file = {
@@ -282,7 +283,7 @@ fun topLevelFunction(value: String): String {
     await new Promise((resolve) => setTimeout(resolve, 5000));
 
     const response = JSON.parse(responseMap.get('list_functions_kotlin_1') || '{}'); // Mapから取得
-    const functions = JSON.parse(response.result.content[0].text);
+    const functions = JSON.parse(response.result.content[0].text).data.functions;
     expect(functions).toEqual(
       expect.arrayContaining([
         expect.objectContaining({
@@ -363,7 +364,7 @@ fun topLevelFunction(value: String): String {
     await new Promise((resolve) => setTimeout(resolve, 5000));
 
     const response = JSON.parse(responseMap.get('list_functions_kotlin_complex_1') || '{}');
-    const functions = JSON.parse(response.result.content[0].text);
+    const functions = JSON.parse(response.result.content[0].text).data.functions;
 
     expect(functions).toEqual(
       expect.arrayContaining([
@@ -527,7 +528,8 @@ fun topLevelFunction(value: String): String {
     await new Promise((resolve) => setTimeout(resolve, 1000));
 
     const response = JSON.parse(responseMap.get('list_functions_error_1') || '{}'); // Mapから取得
-    expect(response.result.content[0].text).toEqual('[]');
+    const parsedContent = JSON.parse(response.result.content[0].text);
+    expect(parsedContent.data.functions).toEqual([]);
   }, 3000);
 
   it('should respond to find_function tool call for Swift', async () => {
