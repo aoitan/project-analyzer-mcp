@@ -32,3 +32,6 @@ local.*.md
 # Kotlin CLI
 kotlin-parser-cli/build/
 kotlin-parser-cli/.gradle/
+
+# Test Project
+src/__tests__/integration/test_project/

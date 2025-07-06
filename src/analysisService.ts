@@ -159,7 +159,9 @@ export class AnalysisService {
     if (lines.length > pageSize || pageToken) {
       const paginatedChunk = applyPaging(chunk, pageSize, pageToken);
       return {
-        content: paginatedChunk.content,
+        content: paginatedChunk.isPartial
+          ? `このチャンクは巨大なため、一部のみを表示しています。\n(${paginatedChunk.currentPage}/${paginatedChunk.totalPages}ページ目、${paginatedChunk.startLine}-${paginatedChunk.endLine}行目)\n${paginatedChunk.nextPageToken ? `次の部分を取得するには、get_chunk ツールに pageToken: "${paginatedChunk.nextPageToken}" を指定してリクエストしてください。` : ''}\n${paginatedChunk.prevPageToken ? `前の部分を取得するには、get_chunk ツールに pageToken: "${paginatedChunk.prevPageToken}" を指定してリクエストしてください。` : ''}\n\n` + paginatedChunk.content
+          : paginatedChunk.content,
         isPartial: paginatedChunk.isPartial,
         totalLines: paginatedChunk.totalLines,
         currentPage: paginatedChunk.currentPage,
@@ -237,7 +239,9 @@ export class AnalysisService {
         if (lines.length > pageSize || pageToken) {
           const paginatedChunk = applyPaging(chunk, pageSize, pageToken);
           return {
-            content: paginatedChunk.content,
+            content: paginatedChunk.isPartial
+              ? `この関数は巨大なため、一部のみを表示しています。\n(${paginatedChunk.currentPage}/${paginatedChunk.totalPages}ページ目、${paginatedChunk.startLine}-${paginatedChunk.endLine}行目)\n${paginatedChunk.nextPageToken ? `次の部分を取得するには、get_function_chunk ツールに pageToken: "${paginatedChunk.nextPageToken}" を指定してリクエストしてください。` : ''}\n${paginatedChunk.prevPageToken ? `前の部分を取得するには、get_function_chunk ツールに pageToken: "${paginatedChunk.prevPageToken}" を指定してリクエストしてください。` : ''}\n\n` + paginatedChunk.content
+              : paginatedChunk.content,
             isPartial: paginatedChunk.isPartial,
             totalLines: paginatedChunk.totalLines,
             currentPage: paginatedChunk.currentPage,
