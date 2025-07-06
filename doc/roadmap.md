@@ -45,6 +45,12 @@
 
 - `analyze_project` ツールのパフォーマンス問題に対処し、より粒度の細かいコード解析ツール（例: `analyze_file`）の導入を検討します。（詳細は [`analyze_project` のパフォーマンスと粒度の改善](issues/analyze_project_performance_and_granularity.md) を参照）
 
+### 1.11. ツール出力のページング機能
+
+- `list_functions_in_file`、`find_file`、`find_function` などのツール出力が大規模になる可能性を考慮し、ページング機能を追加します。
+- ツールに `page` と `pageSize` パラメータを導入し、指定されたページとページサイズに基づいて結果を返します。
+- 結果には、総アイテム数と現在のページ情報を含めます。（詳細は [ツール出力のページング機能の実装](issues/tool_output_paging_implementation.md) を参照）
+
 ## フェーズ2: 言語サポートの拡張 (中期)
 
 ### 2.1. モジュール式パーサーの設計 (解決済み)
