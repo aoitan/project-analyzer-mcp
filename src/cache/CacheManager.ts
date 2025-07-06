@@ -2,6 +2,12 @@ import { CodeChunk } from '../interfaces/parser.js';
 import * as fs from 'fs/promises';
 import * as path from 'path';
 
+import { fileURLToPath } from 'url';
+import { dirname } from 'path';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
+
 const CACHE_DIR = path.join(__dirname, '../../data/chunks');
 const MAX_MEMORY_CACHE_SIZE = 100; // メモリキャッシュの最大サイズ（例として100エントリ）
 
