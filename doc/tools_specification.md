@@ -177,10 +177,29 @@
 
 #### 3.5.3. 出力
 
-- **`status`**: `string`
-  - 処理結果のステータス（例: `success`）。
-- **`message`**: `string`
-  - 処理結果に関するメッセージ。
+- **`content`**: `Array<object>`
+  - 処理結果のコンテンツ。以下の形式のオブジェクトを一つ含みます。
+    - **`type`**: `string` (`"text"`)
+    - **`text`**: `string`
+      - 解析ジョブのステータスと詳細を含むJSON文字列。以下のプロパティを持ちます。
+        - **`jobId`**: `string`
+          - 解析ジョブのユニークなID。
+        - **`status`**: `string`
+          - ジョブの状態（`in_progress`, `completed`, `failed`）。
+        - **`progress`**: `number` (オプション)
+          - 0.0 から 1.0 までの進捗率（`in_progress` の場合）。
+        - **`message`**: `string`
+          - 現在の状態を示すメッセージ。
+        - **`result`**: `object` (オプション)
+          - `status` が `completed` の場合のみ。解析結果の要約。
+            - **`totalFilesAnalyzed`**: `number`
+              - 解析されたファイルの総数。
+            - **`totalChunksExtracted`**: `number`
+              - 抽出されたチャンクの総数。
+        - **`error`**: `object` (オプション)
+          - `status` が `failed` の場合のみ。エラーの詳細。
+            - **`code`**: `number`
+            - **`message`**: `string`
 
 #### 3.5.4. 動作概要
 
