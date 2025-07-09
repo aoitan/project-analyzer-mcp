@@ -62,29 +62,30 @@ export function createMcpServer() {
           description = chunk.message + textContent;
         }
 
-        return {
-          content: [
-            {
-              type: 'text',
-              text: JSON.stringify(
-                {
-                  description,
-                  codeContent: textContent,
-                  isPartial: chunk.isPartial,
-                  totalLines: chunk.totalLines,
-                  currentPage: chunk.currentPage,
-                  totalPages: chunk.totalPages,
-                  nextPageToken: chunk.nextPageToken,
-                  prevPageToken: chunk.prevPageToken,
-                  startLine: chunk.startLine,
-                  endLine: chunk.endLine,
-                },
-                null,
-                2,
-              ),
-            },
+        const responseContent = {
+          description: description,
+          suggested_actions: [
+            `analyze_dependencies: このチャンクの依存関係を解析する`,
+            `get_dependencies: このチャンクの呼び出し元や呼び出し先を調べる`,
           ],
+          follow_up_questions: [
+            `このチャンクについて他に知りたいことはありますか?`,
+            `このチャンクの依存関係を調べますか?`,
+          ],
+          data: {
+            chunkId: chunkId,
+            codeContent: textContent,
+            isPartial: chunk.isPartial,
+            totalLines: chunk.totalLines,
+            currentPage: chunk.currentPage,
+            totalPages: chunk.totalPages,
+            nextPageToken: chunk.nextPageToken,
+            prevPageToken: chunk.prevPageToken,
+            startLine: chunk.startLine,
+            endLine: chunk.endLine,
+          },
         };
+        return { content: [{ type: 'text', text: JSON.stringify(responseContent, null, 2) }] };
       } else {
         return {
           content: [{ type: 'text', text: 'Chunk not found.' }],
