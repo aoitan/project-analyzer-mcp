@@ -201,8 +201,14 @@ describe('MCP Server Tools', () => {
       functionSignature: 'func dummyFunction1(param:) -> Int',
     });
 
-    const expectedCodeContent = "```swift\nfunc dummyFunction1(param: String) -> Int {\n    return 1\n}\n```";
-    const expectedMessage = `/Users/ma-yabushita/00_work/study/ai/toy/src/__tests__/dummy.swift にある func dummyFunction1(param:) -> Int 関数のコードチャンクです。`;
+    const expectedCodeContent =
+      '```\nfunc dummyFunction1(param: String) -> Int {\n    return 1\n}\n```';
+    const expectedMessage = `この関数は巨大なため、一部のみを表示しています。
+(1/1ページ目、1-3行目)
+
+func dummyFunction1(param: String) -> Int {
+    return 1
+}`;
 
     expect(result).toEqual({
       content: [

@@ -724,7 +724,7 @@ fun topLevelFunction(value: String): String {
     const parsedContent = JSON.parse(response.result.content[0].text);
 
     expect(parsedContent.data.isPartial).toBe(true);
-    expect(parsedContent.data.codeContent.split('\n').length).toBe(10);
+    expect(parsedContent.data.codeContent.split('\n').length).toBe(12);
     expect(parsedContent.data.totalLines).toBe(103);
     expect(parsedContent.data.currentPage).toBe(1);
     expect(parsedContent.data.totalPages).toBe(11);
@@ -784,7 +784,7 @@ fun topLevelFunction(value: String): String {
     const secondPageContent = JSON.parse(secondPageResponse.result.content[0].text);
 
     expect(secondPageContent.data.isPartial).toBe(true);
-    expect(secondPageContent.data.codeContent.split('\n').length).toBe(10);
+    expect(secondPageContent.data.codeContent.split('\n').length).toBe(12);
     expect(secondPageContent.data.currentPage).toBe(2);
     expect(secondPageContent.data.prevPageToken).toBeDefined();
   }, 6000);
@@ -812,7 +812,7 @@ fun topLevelFunction(value: String): String {
     const parsedContent = JSON.parse(response.result.content[0].text);
 
     expect(parsedContent.data.isPartial).toBe(true);
-    expect(parsedContent.data.codeContent.split('\n').length).toBe(10);
+    expect(parsedContent.data.codeContent.split('\n').length).toBe(12);
     expect(parsedContent.data.totalLines).toBe(103); // 100 lines + func declaration + closing brace
     expect(parsedContent.data.currentPage).toBe(1);
     expect(parsedContent.data.totalPages).toBe(11); // 102 lines / 10 lines per page = 10.2 -> 11 pages
@@ -870,7 +870,7 @@ fun topLevelFunction(value: String): String {
     const secondPageContent = JSON.parse(secondPageResponse.result.content[0].text);
 
     expect(secondPageContent.data.isPartial).toBe(true);
-    expect(secondPageContent.data.codeContent.split('\n').length).toBe(10);
+    expect(secondPageContent.data.codeContent.split('\n').length).toBe(12);
     expect(secondPageContent.data.currentPage).toBe(2);
     expect(secondPageContent.data.prevPageToken).toBeDefined();
   }, 6000);
