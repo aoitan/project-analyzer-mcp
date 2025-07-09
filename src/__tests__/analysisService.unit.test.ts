@@ -62,6 +62,7 @@ describe('AnalysisService (Unit Tests)', () => {
     signature: 'func dummyFunction1(param:) -> Int',
     id: 'func dummyFunction1(param:) -> Int',
     content: 'return 1',
+    language: 'swift', // 追加
     startLine: 1,
     endLine: 3,
     filePath: dummySwiftFilePath,
@@ -76,6 +77,7 @@ describe('AnalysisService (Unit Tests)', () => {
     signature: 'fun main()',
     type: 'source.lang.kotlin.decl.function.free',
     content: 'fun main() { /* ... */ }',
+    language: 'kotlin', // 追加
     filePath: dummyKotlinFilePath,
     startLine: 1,
     endLine: 5,
@@ -128,7 +130,7 @@ describe('AnalysisService (Unit Tests)', () => {
     expect(mockGlob).toHaveBeenCalledWith('**/*.swift', { cwd: projectPath, absolute: true });
     expect(ParserFactory.getParser).toHaveBeenCalledWith(dummySwiftFilePath, 'swift');
     expect(mockParseFile).toHaveBeenCalledWith(dummySwiftFilePath);
-    expect(mockCacheManager.set).toHaveBeenCalledWith(dummySwiftChunk.id, dummySwiftChunk);
+    expect(mockCacheManager.set).toHaveBeenCalledWith(dummySwiftChunk.id, { ...dummySwiftChunk, language: 'swift' });
   });
 
   it('analyzeProject should parse Kotlin files and save chunks', async () => {
@@ -141,7 +143,7 @@ describe('AnalysisService (Unit Tests)', () => {
     expect(mockGlob).toHaveBeenCalledWith('**/*.kt', { cwd: projectPath, absolute: true });
     expect(ParserFactory.getParser).toHaveBeenCalledWith(dummyKotlinFilePath, 'kotlin');
     expect(mockParseFile).toHaveBeenCalledWith(dummyKotlinFilePath);
-    expect(mockCacheManager.set).toHaveBeenCalledWith(dummyKotlinChunk.id, dummyKotlinChunk);
+    expect(mockCacheManager.set).toHaveBeenCalledWith(dummyKotlinChunk.id, { ...dummyKotlinChunk, language: 'kotlin' });
   });
 
   it('getChunk should return chunk from cache if available', async () => {

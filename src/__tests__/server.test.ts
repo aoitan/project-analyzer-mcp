@@ -201,8 +201,8 @@ describe('MCP Server Tools', () => {
       functionSignature: 'func dummyFunction1(param:) -> Int',
     });
 
-    const expectedCodeContent = `func dummyFunction1(param: String) -> Int {\n    return 1\n}`;
-    const expectedMessage = `この関数は巨大なため、一部のみを表示しています。\n(1/1ページ目、1-3行目)\n\n`;
+    const expectedCodeContent = "```swift\nfunc dummyFunction1(param: String) -> Int {\n    return 1\n}\n```";
+    const expectedMessage = `/Users/ma-yabushita/00_work/study/ai/toy/src/__tests__/dummy.swift にある func dummyFunction1(param:) -> Int 関数のコードチャンクです。`;
 
     expect(result).toEqual({
       content: [
@@ -210,7 +210,7 @@ describe('MCP Server Tools', () => {
           type: 'text',
           text: JSON.stringify(
             {
-              description: expectedMessage + expectedCodeContent,
+              description: expectedMessage,
               suggested_actions: [
                 `analyze_dependencies: この関数の依存関係を解析する`,
                 `get_dependencies: この関数の呼び出し元や呼び出し先を調べる`,

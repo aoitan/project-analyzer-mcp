@@ -74,7 +74,7 @@ export function createMcpServer() {
           ],
           data: {
             chunkId: chunkId,
-            codeContent: "```" + (chunk.language || '') + "\n" + textContent + "\n```",
+            codeContent: '```' + (chunk.language || '') + '\n' + textContent + '\n```',
             isPartial: chunk.isPartial,
             totalLines: chunk.totalLines,
             currentPage: chunk.currentPage,
@@ -176,7 +176,7 @@ export function createMcpServer() {
             data: {
               filePath: filePath,
               functionSignature: functionSignature,
-              codeContent: "```" + (chunk.language || '') + "\n" + textContent + "\n```",
+              codeContent: '```' + (chunk.language || '') + '\n' + textContent + '\n```',
               isPartial: chunk.isPartial,
               totalLines: chunk.totalLines,
               currentPage: chunk.currentPage,

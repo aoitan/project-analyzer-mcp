@@ -24,4 +24,3 @@
 - [ ] `src/server.ts`の`get_function_chunk`ツールが、Markdownコードブロック形式でコードチャンクを返すこと。
 - [ ] 関連するユニットテストおよび統合テストがすべてパスすること。
 - [ ] `doc/tools_specification.md`の`get_chunk`および`get_function_chunk`の出力仕様が更新されたこと。
-
