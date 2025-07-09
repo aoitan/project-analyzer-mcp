@@ -7,6 +7,7 @@ export interface CodeChunk {
   type: string; // 型の正確な判別
   content: string; // コードの内容
   filePath: string; // 元のファイルパス
+  language?: string; // コードの言語 (例: "swift", "kotlin")
   startLine: number; // 開始行番号
   endLine: number; // 終了行番号
   offset: number; // ファイル内でのバイトオフセット（SourceKittenから取得）

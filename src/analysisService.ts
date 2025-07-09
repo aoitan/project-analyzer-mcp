@@ -137,7 +137,9 @@ export class AnalysisService {
         continue;
       }
       const chunks = await parser.parseFile(file);
-      await processAndSaveChunks(chunks);
+      // 各チャンクに言語情報を付与
+      const chunksWithLanguage = chunks.map(chunk => ({ ...chunk, language: file.endsWith('.swift') ? 'swift' : 'kotlin' }));
+      await processAndSaveChunks(chunksWithLanguage);
     }
   }
 
