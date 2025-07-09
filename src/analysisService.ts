@@ -150,6 +150,7 @@ export class AnalysisService {
   ): Promise<{
     codeContent: string; // 純粋なコードコンテンツ
     message?: string; // 自然言語の補足メッセージ
+    language?: string; // コードの言語
     isPartial?: boolean;
     totalLines?: number;
     currentPage?: number;
@@ -257,6 +258,7 @@ export class AnalysisService {
   ): Promise<{
     codeContent: string; // 純粋なコードコンテンツ
     message?: string; // 自然言語の補足メッセージ
+    language?: string; // コードの言語
     isPartial?: boolean;
     totalLines?: number;
     currentPage?: number;
