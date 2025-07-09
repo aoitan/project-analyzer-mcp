@@ -811,13 +811,13 @@ fun topLevelFunction(value: String): String {
     const response = JSON.parse(responseMap.get('get_chunk_large_chunk_1') || '{}');
     const parsedContent = JSON.parse(response.result.content[0].text);
 
-    expect(parsedContent.isPartial).toBe(true);
-    expect(parsedContent.codeContent.split('\n').length).toBe(10);
-    expect(parsedContent.totalLines).toBe(103); // 100 lines + func declaration + closing brace
-    expect(parsedContent.currentPage).toBe(1);
-    expect(parsedContent.totalPages).toBe(11); // 102 lines / 10 lines per page = 10.2 -> 11 pages
-    expect(parsedContent.nextPageToken).toBeDefined();
-    expect(parsedContent.prevPageToken).toBeUndefined();
+    expect(parsedContent.data.isPartial).toBe(true);
+    expect(parsedContent.data.codeContent.split('\n').length).toBe(10);
+    expect(parsedContent.data.totalLines).toBe(103); // 100 lines + func declaration + closing brace
+    expect(parsedContent.data.currentPage).toBe(1);
+    expect(parsedContent.data.totalPages).toBe(11); // 102 lines / 10 lines per page = 10.2 -> 11 pages
+    expect(parsedContent.data.nextPageToken).toBeDefined();
+    expect(parsedContent.data.prevPageToken).toBeUndefined();
   }, 3000);
 
   it('should respond to get_chunk tool call with next page using pageToken', async () => {
@@ -841,7 +841,7 @@ fun topLevelFunction(value: String): String {
       responseMap.get('get_chunk_large_chunk_first_page') || '{}',
     );
     const firstPageContent = JSON.parse(firstPageResponse.result.content[0].text);
-    const nextPageToken = firstPageContent.nextPageToken;
+    const nextPageToken = firstPageContent.data.nextPageToken;
 
     expect(nextPageToken).toBeDefined();
 
