@@ -869,9 +869,9 @@ fun topLevelFunction(value: String): String {
     );
     const secondPageContent = JSON.parse(secondPageResponse.result.content[0].text);
 
-    expect(secondPageContent.isPartial).toBe(true);
-    expect(secondPageContent.codeContent.split('\n').length).toBe(10);
-    expect(secondPageContent.currentPage).toBe(2);
-    expect(secondPageContent.prevPageToken).toBeDefined();
+    expect(secondPageContent.data.isPartial).toBe(true);
+    expect(secondPageContent.data.codeContent.split('\n').length).toBe(10);
+    expect(secondPageContent.data.currentPage).toBe(2);
+    expect(secondPageContent.data.prevPageToken).toBeDefined();
   }, 6000);
 });
