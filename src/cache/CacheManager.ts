@@ -32,6 +32,11 @@ class CacheManager {
     }
   }
 
+  private toSafeFileName(name: string): string {
+    // ファイル名として安全でない文字をアンダースコアに置換
+    return name.replace(/[^a-zA-Z0-9-_.]/g, '_');
+  }
+
   public async set(key: string, value: CodeChunk): Promise<void> {
     // メモリキャッシュに保存
     this.memoryCache.set(key, { value, timestamp: Date.now() });
@@ -76,7 +81,8 @@ class CacheManager {
   }
 
   private async saveToFile(key: string, value: CodeChunk): Promise<void> {
-    const filePath = path.join(CACHE_DIR, `${key}.json`);
+    const safeKey = this.toSafeFileName(key);
+    const filePath = path.join(CACHE_DIR, `${safeKey}.json`);
     try {
       await fs.writeFile(filePath, JSON.stringify(value, null, 2), 'utf-8');
     } catch (error) {
@@ -85,7 +91,8 @@ class CacheManager {
   }
 
   private async loadFromFile(key: string): Promise<CodeChunk | undefined> {
-    const filePath = path.join(CACHE_DIR, `${key}.json`);
+    const safeKey = this.toSafeFileName(key);
+    const filePath = path.join(CACHE_DIR, `${safeKey}.json`);
     try {
       const data = await fs.readFile(filePath, 'utf-8');
       return JSON.parse(data) as CodeChunk;

@@ -48,12 +48,43 @@ export function createMcpServer() {
       description: 'Retrieves a specific code chunk.',
       inputSchema: {
         chunkId: z.string().describe('The ID of the code chunk to retrieve.'),
+        pageSize: z.number().optional().describe('The number of lines per page.'),
+        pageToken: z.string().optional().describe('The token for the next page.'),
       },
     },
-    async ({ chunkId }) => {
-      const chunk = await analysisService.getChunk(chunkId);
+    async ({ chunkId, pageSize, pageToken }) => {
+      const chunk = await analysisService.getChunk(chunkId, pageSize, pageToken);
       if (chunk) {
-        return { content: [{ type: 'text', text: chunk.content }] };
+        let textContent = chunk.codeContent;
+        let description = `チャンクID ${chunkId} のコードチャンクです。`;
+
+        if (chunk.message) {
+          description = chunk.message + textContent;
+        }
+
+        return {
+          content: [
+            {
+              type: 'text',
+              text: JSON.stringify(
+                {
+                  description,
+                  codeContent: textContent,
+                  isPartial: chunk.isPartial,
+                  totalLines: chunk.totalLines,
+                  currentPage: chunk.currentPage,
+                  totalPages: chunk.totalPages,
+                  nextPageToken: chunk.nextPageToken,
+                  prevPageToken: chunk.prevPageToken,
+                  startLine: chunk.startLine,
+                  endLine: chunk.endLine,
+                },
+                null,
+                2,
+              ),
+            },
+          ],
+        };
       } else {
         return {
           content: [{ type: 'text', text: 'Chunk not found.' }],
@@ -111,26 +142,48 @@ export function createMcpServer() {
       inputSchema: {
         filePath: z.string().describe('The absolute path to the source file.'),
         functionSignature: z.string().describe('The signature of the function to retrieve.'),
+        pageSize: z.number().optional().describe('The number of lines per page.'),
+        pageToken: z.string().optional().describe('The token for the next page.'),
       },
     },
-    async ({ filePath, functionSignature }) => {
+    async ({ filePath, functionSignature, pageSize, pageToken }) => {
       try {
-        const content = await analysisService.getFunctionChunk(filePath, functionSignature);
-        if (content) {
+        const chunk = await analysisService.getFunctionChunk(
+          filePath,
+          functionSignature,
+          pageSize,
+          pageToken,
+        );
+        if (chunk) {
+          let textContent = chunk.codeContent;
+          let description = `${filePath} にある ${functionSignature} 関数のコードチャンクです。`;
+
+          if (chunk.message) {
+            description = chunk.message + textContent;
+          }
+
           const responseContent = {
-            description: `${filePath} にある ${functionSignature} 関数のコードチャンクです。`,
+            description: description,
             suggested_actions: [
               `analyze_dependencies: この関数の依存関係を解析する`,
               `get_dependencies: この関数の呼び出し元や呼び出し先を調べる`,
             ],
             follow_up_questions: [
               `この関数について他に知りたいことはありますか?`,
-              `この関数の依存関係を調べますか?`,
+              `この関数の依存関係を調べます?`,
             ],
             data: {
               filePath: filePath,
               functionSignature: functionSignature,
-              codeContent: content.content,
+              codeContent: textContent,
+              isPartial: chunk.isPartial,
+              totalLines: chunk.totalLines,
+              currentPage: chunk.currentPage,
+              totalPages: chunk.totalPages,
+              nextPageToken: chunk.nextPageToken,
+              prevPageToken: chunk.prevPageToken,
+              startLine: chunk.startLine,
+              endLine: chunk.endLine,
             },
           };
           return { content: [{ type: 'text', text: JSON.stringify(responseContent, null, 2) }] };
@@ -164,7 +217,7 @@ export function createMcpServer() {
     },
     async ({ pattern }) => {
       const files = await analysisService.findFiles(pattern);
-      return { content: [{ type: 'text', text: JSON.stringify(files, null, 2) }] };
+      return { content: [{ type: 'text', text: JSON.stringify({ items: files }, null, 2) }] };
     },
   );
   server.registerTool(
@@ -179,7 +232,7 @@ export function createMcpServer() {
     },
     async ({ filePath, functionQuery }) => {
       const functions = await analysisService.findFunctions(filePath, functionQuery);
-      return { content: [{ type: 'text', text: JSON.stringify(functions, null, 2) }] };
+      return { content: [{ type: 'text', text: JSON.stringify({ items: functions }, null, 2) }] };
     },
   );
 

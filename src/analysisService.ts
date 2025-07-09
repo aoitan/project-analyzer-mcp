@@ -40,44 +40,41 @@ function applyPaging(
   const totalLines = lines.length;
   const totalPages = Math.ceil(totalLines / pageSize);
 
+  let currentChunkStartLine = 0;
   let currentPage = 1;
-  let startLine = 0;
-  let endLine = totalLines;
 
   if (requestedPageToken) {
     const pagingInfo = parsePageToken(requestedPageToken);
     if (pagingInfo && pagingInfo.chunkId === originalChunk.id) {
-      currentPage = Math.floor(pagingInfo.startLine / pageSize) + 1;
-      startLine = pagingInfo.startLine;
-      endLine = pagingInfo.endLine;
+      // pageToken から開始行とページ番号を設定
+      currentChunkStartLine = pagingInfo.startLine;
+      currentPage = Math.floor(currentChunkStartLine / pageSize) + 1;
     }
   }
 
-  // Adjust start/end lines based on current page and page size
-  startLine = (currentPage - 1) * pageSize;
-  endLine = Math.min(startLine + pageSize, totalLines);
+  const currentChunkEndLine = Math.min(currentChunkStartLine + pageSize, totalLines);
 
-  const paginatedContent = lines.slice(startLine, endLine).join('\n');
+  const paginatedContent = lines.slice(currentChunkStartLine, currentChunkEndLine).join('\n');
 
   const nextPageToken =
-    currentPage < totalPages
+    currentChunkEndLine < totalLines // endLine が totalLines より小さい場合のみ次ページあり
       ? generatePageToken({
           filePath: originalChunk.filePath,
           chunkId: originalChunk.id,
-          startLine: endLine,
-          endLine: Math.min(endLine + pageSize, totalLines),
+          startLine: currentChunkEndLine, // 次のページの開始行
+          endLine: Math.min(currentChunkEndLine + pageSize, totalLines),
           pageSize,
           totalLines,
         })
       : undefined;
 
   const prevPageToken =
-    currentPage > 1
+    currentChunkStartLine > 0 // 開始行が0より大きい場合のみ前ページあり
       ? generatePageToken({
           filePath: originalChunk.filePath,
           chunkId: originalChunk.id,
-          startLine: Math.max(0, startLine - pageSize),
-          endLine: startLine,
+          startLine: Math.max(0, currentChunkStartLine - pageSize),
+          endLine: currentChunkStartLine, // 前のページの終了行
           pageSize,
           totalLines,
         })
@@ -92,8 +89,8 @@ function applyPaging(
     totalPages: totalPages,
     nextPageToken: nextPageToken,
     prevPageToken: prevPageToken,
-    startLine: originalChunk.startLine + startLine, // Adjust startLine relative to original file
-    endLine: originalChunk.startLine + endLine -1, // Adjust endLine relative to original file
+    startLine: originalChunk.startLine + currentChunkStartLine, // Adjust startLine relative to original file
+    endLine: originalChunk.startLine + currentChunkEndLine - 1, // Adjust endLine relative to original file (inclusive)
   };
 }
 
@@ -148,7 +145,18 @@ export class AnalysisService {
     chunkId: string,
     pageSize: number = MAX_CHUNK_LINES,
     pageToken?: string,
-  ): Promise<{ content: string; isPartial?: boolean; totalLines?: number; currentPage?: number; totalPages?: number; nextPageToken?: string; prevPageToken?: string; } | null> {
+  ): Promise<{
+    codeContent: string; // 純粋なコードコンテンツ
+    message?: string; // 自然言語の補足メッセージ
+    isPartial?: boolean;
+    totalLines?: number;
+    currentPage?: number;
+    totalPages?: number;
+    nextPageToken?: string;
+    prevPageToken?: string;
+    startLine?: number;
+    endLine?: number;
+  } | null> {
     logger.info(`AnalysisService: Getting chunk: ${chunkId}`);
     const chunk = await cacheManager.get(chunkId);
     if (!chunk) {
@@ -158,20 +166,35 @@ export class AnalysisService {
     const lines = chunk.content.split('\n');
     if (lines.length > pageSize || pageToken) {
       const paginatedChunk = applyPaging(chunk, pageSize, pageToken);
+      const message = paginatedChunk.isPartial
+        ? `このチャンクは巨大なため、一部のみを表示しています。\n(${paginatedChunk.currentPage}/${paginatedChunk.totalPages}ページ目、${paginatedChunk.startLine}-${paginatedChunk.endLine}行目)\n${paginatedChunk.nextPageToken ? `次の部分を取得するには、get_chunk ツールに pageToken: "${paginatedChunk.nextPageToken}" を指定してリクエストしてください。` : ''}\n${paginatedChunk.prevPageToken ? `前の部分を取得するには、get_chunk ツールに pageToken: "${paginatedChunk.prevPageToken}" を指定してリクエストしてください。` : ''}\n\n`
+        : undefined;
+
       return {
-        content: paginatedChunk.isPartial
-          ? `このチャンクは巨大なため、一部のみを表示しています。\n(${paginatedChunk.currentPage}/${paginatedChunk.totalPages}ページ目、${paginatedChunk.startLine}-${paginatedChunk.endLine}行目)\n${paginatedChunk.nextPageToken ? `次の部分を取得するには、get_chunk ツールに pageToken: "${paginatedChunk.nextPageToken}" を指定してリクエストしてください。` : ''}\n${paginatedChunk.prevPageToken ? `前の部分を取得するには、get_chunk ツールに pageToken: "${paginatedChunk.prevPageToken}" を指定してリクエストしてください。` : ''}\n\n` + paginatedChunk.content
-          : paginatedChunk.content,
+        codeContent: paginatedChunk.content,
+        message: message,
         isPartial: paginatedChunk.isPartial,
         totalLines: paginatedChunk.totalLines,
         currentPage: paginatedChunk.currentPage,
         totalPages: paginatedChunk.totalPages,
         nextPageToken: paginatedChunk.nextPageToken,
         prevPageToken: paginatedChunk.prevPageToken,
+        startLine: paginatedChunk.startLine,
+        endLine: paginatedChunk.endLine,
       };
     }
 
-    return { content: chunk.content };
+    return {
+      codeContent: chunk.content,
+      isPartial: false,
+      totalLines: lines.length,
+      currentPage: 1,
+      totalPages: 1,
+      nextPageToken: undefined,
+      prevPageToken: undefined,
+      startLine: chunk.startLine,
+      endLine: chunk.endLine,
+    };
   }
 
   private async getSwiftFiles(projectPath: string): Promise<string[]> {
@@ -229,7 +252,18 @@ export class AnalysisService {
     functionSignature: string,
     pageSize: number = MAX_CHUNK_LINES,
     pageToken?: string,
-  ): Promise<{ content: string; isPartial?: boolean; totalLines?: number; currentPage?: number; totalPages?: number; nextPageToken?: string; prevPageToken?: string; } | null> {
+  ): Promise<{
+    codeContent: string; // 純粋なコードコンテンツ
+    message?: string; // 自然言語の補足メッセージ
+    isPartial?: boolean;
+    totalLines?: number;
+    currentPage?: number;
+    totalPages?: number;
+    nextPageToken?: string;
+    prevPageToken?: string;
+    startLine?: number;
+    endLine?: number;
+  } | null> {
     logger.info(`AnalysisService: Getting function chunk for ${functionSignature} in ${filePath}`);
     const allChunkIds = await cacheManager.listAllChunkIds();
     for (const chunkId of allChunkIds) {
@@ -238,19 +272,34 @@ export class AnalysisService {
         const lines = chunk.content.split('\n');
         if (lines.length > pageSize || pageToken) {
           const paginatedChunk = applyPaging(chunk, pageSize, pageToken);
+          const message = paginatedChunk.isPartial
+            ? `この関数は巨大なため、一部のみを表示しています。\n(${paginatedChunk.currentPage}/${paginatedChunk.totalPages}ページ目、${paginatedChunk.startLine}-${paginatedChunk.endLine}行目)\n${paginatedChunk.nextPageToken ? `次の部分を取得するには、get_function_chunk ツールに pageToken: "${paginatedChunk.nextPageToken}" を指定してリクエストしてください。` : ''}\n${paginatedChunk.prevPageToken ? `前の部分を取得するには、get_function_chunk ツールに pageToken: "${paginatedChunk.prevPageToken}" を指定してリクエストしてください。` : ''}\n\n`
+            : undefined;
+
           return {
-            content: paginatedChunk.isPartial
-              ? `この関数は巨大なため、一部のみを表示しています。\n(${paginatedChunk.currentPage}/${paginatedChunk.totalPages}ページ目、${paginatedChunk.startLine}-${paginatedChunk.endLine}行目)\n${paginatedChunk.nextPageToken ? `次の部分を取得するには、get_function_chunk ツールに pageToken: "${paginatedChunk.nextPageToken}" を指定してリクエストしてください。` : ''}\n${paginatedChunk.prevPageToken ? `前の部分を取得するには、get_function_chunk ツールに pageToken: "${paginatedChunk.prevPageToken}" を指定してリクエストしてください。` : ''}\n\n` + paginatedChunk.content
-              : paginatedChunk.content,
+            codeContent: paginatedChunk.content,
+            message: message,
             isPartial: paginatedChunk.isPartial,
             totalLines: paginatedChunk.totalLines,
             currentPage: paginatedChunk.currentPage,
             totalPages: paginatedChunk.totalPages,
             nextPageToken: paginatedChunk.nextPageToken,
             prevPageToken: paginatedChunk.prevPageToken,
+            startLine: paginatedChunk.startLine,
+            endLine: paginatedChunk.endLine,
           };
         }
-        return { content: chunk.content };
+        return {
+          codeContent: chunk.content,
+          isPartial: false,
+          totalLines: lines.length,
+          currentPage: 1,
+          totalPages: 1,
+          nextPageToken: undefined,
+          prevPageToken: undefined,
+          startLine: chunk.startLine,
+          endLine: chunk.endLine,
+        };
       }
     }
     return null;

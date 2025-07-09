@@ -443,7 +443,7 @@ fun topLevelFunction(value: String): String {
     await new Promise((resolve) => setTimeout(resolve, 5000));
 
     const response = JSON.parse(responseMap.get('find_function_kotlin_complex_1') || '{}');
-    const functions = JSON.parse(response.result.content[0].text);
+    const functions = JSON.parse(response.result.content[0].text).items;
     expect(functions).toContainEqual(
       expect.objectContaining({
         id: 'fun <T> processList(items: List<T>, filter: (T) -> Boolean = { true }): List<T>',
@@ -611,7 +611,7 @@ fun topLevelFunction(value: String): String {
     await new Promise((resolve) => setTimeout(resolve, 1000));
 
     const response = JSON.parse(responseMap.get('find_file_1') || '{}'); // Mapから取得
-    const files = JSON.parse(response.result.content[0].text);
+    const files = JSON.parse(response.result.content[0].text).items;
     expect(files).toEqual(expect.arrayContaining([path.join(TEST_PROJECT_DIR, 'test.swift')]));
   }, 3000);
 
@@ -658,7 +658,7 @@ fun topLevelFunction(value: String): String {
     await new Promise((resolve) => setTimeout(resolve, 1000));
 
     const response = JSON.parse(responseMap.get('find_function_swift_1') || '{}'); // Mapから取得
-    const functions = JSON.parse(response.result.content[0].text);
+    const functions = JSON.parse(response.result.content[0].text).items;
     expect(functions).toEqual(
       expect.arrayContaining([
         expect.objectContaining({
@@ -689,7 +689,7 @@ fun topLevelFunction(value: String): String {
     await new Promise((resolve) => setTimeout(resolve, 3000));
 
     const response = JSON.parse(responseMap.get('find_function_kotlin_1') || '{}'); // Mapから取得
-    const functions = JSON.parse(response.result.content[0].text);
+    const functions = JSON.parse(response.result.content[0].text).items;
     expect(functions).toEqual(
       expect.arrayContaining([
         expect.objectContaining({
@@ -714,20 +714,22 @@ fun topLevelFunction(value: String): String {
         },
       },
     };
-    serverProcess.stdin.write(`${JSON.stringify(get_function_chunk)}\n\n`);
+    serverProcess.stdin.write(`${JSON.stringify(get_function_chunk)}
+
+`);
 
     await new Promise((resolve) => setTimeout(resolve, 1000));
 
     const response = JSON.parse(responseMap.get('get_chunk_large_function_1') || '{}');
     const parsedContent = JSON.parse(response.result.content[0].text);
 
-    expect(parsedContent.isPartial).toBe(true);
-    expect(parsedContent.content.split('\n').length).toBe(10);
-    expect(parsedContent.totalLines).toBe(102); // 100 lines + func declaration + closing brace
-    expect(parsedContent.currentPage).toBe(1);
-    expect(parsedContent.totalPages).toBe(11); // 102 lines / 10 lines per page = 10.2 -> 11 pages
-    expect(parsedContent.nextPageToken).toBeDefined();
-    expect(parsedContent.prevPageToken).toBeUndefined();
+    expect(parsedContent.data.isPartial).toBe(true);
+    expect(parsedContent.data.codeContent.split('\n').length).toBe(10);
+    expect(parsedContent.data.totalLines).toBe(103);
+    expect(parsedContent.data.currentPage).toBe(1);
+    expect(parsedContent.data.totalPages).toBe(11);
+    expect(parsedContent.data.nextPageToken).toBeDefined();
+    expect(parsedContent.data.prevPageToken).toBeUndefined();
   }, 3000);
 
   it('should respond to get_function_chunk tool call with next page using pageToken', async () => {
@@ -752,7 +754,7 @@ fun topLevelFunction(value: String): String {
       responseMap.get('get_chunk_large_function_first_page') || '{}',
     );
     const firstPageContent = JSON.parse(firstPageResponse.result.content[0].text);
-    const nextPageToken = firstPageContent.nextPageToken;
+    const nextPageToken = firstPageContent.data.nextPageToken;
 
     expect(nextPageToken).toBeDefined();
 
@@ -770,7 +772,9 @@ fun topLevelFunction(value: String): String {
         },
       },
     };
-    serverProcess.stdin.write(`${JSON.stringify(get_function_chunk_second_page)}\n\n`);
+    serverProcess.stdin.write(`${JSON.stringify(get_function_chunk_second_page)}
+
+`);
 
     await new Promise((resolve) => setTimeout(resolve, 1000));
 
@@ -779,10 +783,10 @@ fun topLevelFunction(value: String): String {
     );
     const secondPageContent = JSON.parse(secondPageResponse.result.content[0].text);
 
-    expect(secondPageContent.isPartial).toBe(true);
-    expect(secondPageContent.content.split('\n').length).toBe(10);
-    expect(secondPageContent.currentPage).toBe(2);
-    expect(secondPageContent.prevPageToken).toBeDefined();
+    expect(secondPageContent.data.isPartial).toBe(true);
+    expect(secondPageContent.data.codeContent.split('\n').length).toBe(10);
+    expect(secondPageContent.data.currentPage).toBe(2);
+    expect(secondPageContent.data.prevPageToken).toBeDefined();
   }, 6000);
 
   it('should respond to get_chunk tool call with paging for large chunk', async () => {
@@ -798,7 +802,9 @@ fun topLevelFunction(value: String): String {
         },
       },
     };
-    serverProcess.stdin.write(`${JSON.stringify(get_chunk)}\n\n`);
+    serverProcess.stdin.write(`${JSON.stringify(get_chunk)}
+
+`);
 
     await new Promise((resolve) => setTimeout(resolve, 1000));
 
@@ -806,8 +812,8 @@ fun topLevelFunction(value: String): String {
     const parsedContent = JSON.parse(response.result.content[0].text);
 
     expect(parsedContent.isPartial).toBe(true);
-    expect(parsedContent.content.split('\n').length).toBe(10);
-    expect(parsedContent.totalLines).toBe(102); // 100 lines + func declaration + closing brace
+    expect(parsedContent.codeContent.split('\n').length).toBe(10);
+    expect(parsedContent.totalLines).toBe(103); // 100 lines + func declaration + closing brace
     expect(parsedContent.currentPage).toBe(1);
     expect(parsedContent.totalPages).toBe(11); // 102 lines / 10 lines per page = 10.2 -> 11 pages
     expect(parsedContent.nextPageToken).toBeDefined();
@@ -852,7 +858,9 @@ fun topLevelFunction(value: String): String {
         },
       },
     };
-    serverProcess.stdin.write(`${JSON.stringify(get_chunk_second_page)}\n\n`);
+    serverProcess.stdin.write(`${JSON.stringify(get_chunk_second_page)}
+
+`);
 
     await new Promise((resolve) => setTimeout(resolve, 1000));
 
@@ -862,7 +870,7 @@ fun topLevelFunction(value: String): String {
     const secondPageContent = JSON.parse(secondPageResponse.result.content[0].text);
 
     expect(secondPageContent.isPartial).toBe(true);
-    expect(secondPageContent.content.split('\n').length).toBe(10);
+    expect(secondPageContent.codeContent.split('\n').length).toBe(10);
     expect(secondPageContent.currentPage).toBe(2);
     expect(secondPageContent.prevPageToken).toBeDefined();
   }, 6000);

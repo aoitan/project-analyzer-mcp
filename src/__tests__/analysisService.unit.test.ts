@@ -148,7 +148,17 @@ describe('AnalysisService (Unit Tests)', () => {
     mockCacheManager.get.mockResolvedValueOnce(dummySwiftChunk);
 
     const chunk = await analysisService.getChunk(dummySwiftChunk.id);
-    expect(chunk).toEqual({ content: dummySwiftChunk.content });
+    expect(chunk).toEqual({
+      codeContent: dummySwiftChunk.content,
+      isPartial: false,
+      totalLines: dummySwiftChunk.content.split('\n').length,
+      currentPage: 1,
+      totalPages: 1,
+      nextPageToken: undefined,
+      prevPageToken: undefined,
+      startLine: dummySwiftChunk.startLine,
+      endLine: dummySwiftChunk.endLine,
+    });
     expect(mockCacheManager.get).toHaveBeenCalledWith(dummySwiftChunk.id);
   });
 
@@ -157,7 +167,17 @@ describe('AnalysisService (Unit Tests)', () => {
 
     const chunk = await analysisService.getChunk(dummySwiftChunk.id);
     expect(mockCacheManager.get).toHaveBeenCalledWith(dummySwiftChunk.id);
-    expect(chunk).toEqual({ content: dummySwiftChunk.content });
+    expect(chunk).toEqual({
+      codeContent: dummySwiftChunk.content,
+      isPartial: false,
+      totalLines: dummySwiftChunk.content.split('\n').length,
+      currentPage: 1,
+      totalPages: 1,
+      nextPageToken: undefined,
+      prevPageToken: undefined,
+      startLine: dummySwiftChunk.startLine,
+      endLine: dummySwiftChunk.endLine,
+    });
   });
 
   it('getChunk should return paginated chunk if content is large', async () => {
@@ -165,7 +185,7 @@ describe('AnalysisService (Unit Tests)', () => {
 
     const chunk = await analysisService.getChunk(dummyLargeChunk.id, 10); // pageSize = 10
     expect(chunk?.isPartial).toBe(true);
-    expect(chunk?.content.split('\n').length).toBe(10);
+    expect(chunk?.codeContent.split('\n').length).toBe(10);
     expect(chunk?.totalLines).toBe(100);
     expect(chunk?.currentPage).toBe(1);
     expect(chunk?.totalPages).toBe(10);
@@ -186,7 +206,7 @@ describe('AnalysisService (Unit Tests)', () => {
       firstPage?.nextPageToken,
     );
     expect(secondPage?.isPartial).toBe(true);
-    expect(secondPage?.content.split('\n').length).toBe(10);
+    expect(secondPage?.codeContent.split('\n').length).toBe(10);
     expect(secondPage?.currentPage).toBe(2);
     expect(secondPage?.prevPageToken).toBeDefined();
   });
@@ -221,7 +241,17 @@ describe('AnalysisService (Unit Tests)', () => {
     );
     expect(mockCacheManager.listAllChunkIds).toHaveBeenCalled();
     expect(mockCacheManager.get).toHaveBeenCalledWith(dummySwiftChunk.id);
-    expect(content).toEqual({ content: dummySwiftChunk.content });
+    expect(content).toEqual({
+      codeContent: dummySwiftChunk.content,
+      isPartial: false,
+      totalLines: dummySwiftChunk.content.split('\n').length,
+      currentPage: 1,
+      totalPages: 1,
+      nextPageToken: undefined,
+      prevPageToken: undefined,
+      startLine: dummySwiftChunk.startLine,
+      endLine: dummySwiftChunk.endLine,
+    });
   });
 
   it('getFunctionChunk should return function content for Kotlin file', async () => {
@@ -234,7 +264,17 @@ describe('AnalysisService (Unit Tests)', () => {
     );
     expect(mockCacheManager.listAllChunkIds).toHaveBeenCalled();
     expect(mockCacheManager.get).toHaveBeenCalledWith(dummyKotlinChunk.id);
-    expect(content).toEqual({ content: dummyKotlinChunk.content });
+    expect(content).toEqual({
+      codeContent: dummyKotlinChunk.content,
+      isPartial: false,
+      totalLines: dummyKotlinChunk.content.split('\n').length,
+      currentPage: 1,
+      totalPages: 1,
+      nextPageToken: undefined,
+      prevPageToken: undefined,
+      startLine: dummyKotlinChunk.startLine,
+      endLine: dummyKotlinChunk.endLine,
+    });
   });
 
   it('getFunctionChunk should return paginated chunk if content is large', async () => {
@@ -247,7 +287,7 @@ describe('AnalysisService (Unit Tests)', () => {
       10,
     ); // pageSize = 10
     expect(chunk?.isPartial).toBe(true);
-    expect(chunk?.content.split('\n').length).toBe(10);
+    expect(chunk?.codeContent.split('\n').length).toBe(10);
     expect(chunk?.totalLines).toBe(100);
     expect(chunk?.currentPage).toBe(1);
     expect(chunk?.totalPages).toBe(10);
@@ -275,7 +315,7 @@ describe('AnalysisService (Unit Tests)', () => {
       firstPage?.nextPageToken,
     );
     expect(secondPage?.isPartial).toBe(true);
-    expect(secondPage?.content.split('\n').length).toBe(10);
+    expect(secondPage?.codeContent.split('\n').length).toBe(10); // 補足行 + 10行
     expect(secondPage?.currentPage).toBe(2);
     expect(secondPage?.prevPageToken).toBeDefined();
   });

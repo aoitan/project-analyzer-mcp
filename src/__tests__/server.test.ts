@@ -55,7 +55,18 @@ vi.mock('../analysisService.js', () => ({
         filePath === '/Users/ma-yabushita/00_work/study/ai/toy/src/__tests__/dummy.swift' &&
         functionSignature === 'func dummyFunction1(param:) -> Int'
       ) {
-        return { content: 'func dummyFunction1(param: String) -> Int {\n    return 1\n}' };
+        return {
+          codeContent: 'func dummyFunction1(param: String) -> Int {\n    return 1\n}',
+          message: `この関数は巨大なため、一部のみを表示しています。\n(1/1ページ目、1-3行目)\n\n`,
+          isPartial: false,
+          totalLines: 3,
+          currentPage: 1,
+          totalPages: 1,
+          nextPageToken: undefined,
+          prevPageToken: undefined,
+          startLine: 1,
+          endLine: 3,
+        };
       }
       return null;
     }),
@@ -189,25 +200,37 @@ describe('MCP Server Tools', () => {
       filePath: '/Users/ma-yabushita/00_work/study/ai/toy/src/__tests__/dummy.swift',
       functionSignature: 'func dummyFunction1(param:) -> Int',
     });
+
+    const expectedCodeContent = `func dummyFunction1(param: String) -> Int {\n    return 1\n}`;
+    const expectedMessage = `この関数は巨大なため、一部のみを表示しています。\n(1/1ページ目、1-3行目)\n\n`;
+
     expect(result).toEqual({
       content: [
         {
           type: 'text',
           text: JSON.stringify(
             {
-              description: `/Users/ma-yabushita/00_work/study/ai/toy/src/__tests__/dummy.swift にある func dummyFunction1(param:) -> Int 関数のコードチャンクです。`,
+              description: expectedMessage + expectedCodeContent,
               suggested_actions: [
                 `analyze_dependencies: この関数の依存関係を解析する`,
                 `get_dependencies: この関数の呼び出し元や呼び出し先を調べる`,
               ],
               follow_up_questions: [
                 `この関数について他に知りたいことはありますか?`,
-                `この関数の依存関係を調べますか?`,
+                `この関数の依存関係を調べます?`,
               ],
               data: {
                 filePath: `/Users/ma-yabushita/00_work/study/ai/toy/src/__tests__/dummy.swift`,
                 functionSignature: `func dummyFunction1(param:) -> Int`,
-                codeContent: `func dummyFunction1(param: String) -> Int {\n    return 1\n}`,
+                codeContent: expectedCodeContent,
+                isPartial: false,
+                totalLines: 3,
+                currentPage: 1,
+                totalPages: 1,
+                nextPageToken: undefined,
+                prevPageToken: undefined,
+                startLine: 1,
+                endLine: 3,
               },
             },
             null,
