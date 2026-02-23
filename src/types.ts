@@ -7,6 +7,22 @@ export interface SimpleDependencyGraph {
   [chunkId: string]: CodeChunk;
 }
 
+// ナレッジグラフ用のノード構造
+export interface GraphNode {
+  id: string; // 一意な識別子（USRやシグネチャなど）
+  name: string;
+  kind: 'class' | 'function' | 'property' | 'interface' | 'protocol' | 'module';
+  filePath: string;
+  metadata?: any; // 自然言語要約などの付加情報
+}
+
+// ナレッジグラフ用のエッジ構造
+export interface GraphEdge {
+  sourceId: string;
+  targetId: string;
+  relationship: 'calls' | 'called_by' | 'inherits' | 'implements' | 'depends_on' | 'contains';
+}
+
 // SourceKittenの出力構造の一部を簡易的に定義
 // 実際にはもっと複雑ですが、必要な部分のみ抜粋
 export interface SourceKittenStructure {
