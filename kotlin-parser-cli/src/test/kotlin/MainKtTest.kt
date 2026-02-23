@@ -17,8 +17,9 @@ class MainKtTest {
     }
 
     private fun runCli(filePath: String): ProcessResult {
+        val javaBin = File(System.getProperty("java.home"), "bin/java").absolutePath
         val processBuilder = ProcessBuilder(
-            "java",
+            javaBin,
             "-jar",
             File(System.getProperty("user.dir"), "build/libs/kotlin-parser-cli.jar").absolutePath, // ビルドされたJARファイルの絶対パス
             filePath
