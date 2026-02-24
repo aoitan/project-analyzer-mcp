@@ -1,0 +1,15 @@
+feat: 既存言語サーバー連携用アダプタ層の実装
+
+- AnalysisAdapterインターフェースとGraphNode等の型定義を追加
+- SourceKitLspAdapterの初期実装（JSON-RPC経由での通信基盤および初期化・シンボル取得APIの実装）を追加
+- doc/graph_rag/issue_01_adapter_layer.md を完了とし削除
+
+追加したテストケース:
+- MockAnalysisAdapter 初期化前はエラーを投げること
+- MockAnalysisAdapter 初期化後に正しくシンボルを取得できること
+- MockAnalysisAdapter 指定したシンボルの参照元（Caller）を取得できること
+- MockAnalysisAdapter 指定したシンボルの呼び出し先（Callee）を取得できること
+- SourceKitLspAdapter LSP初期化リクエストを送信できること
+- SourceKitLspAdapter 初期化前にシンボル取得を試みるとエラーになること
+- SourceKitLspAdapter getSymbolAtPointでLSPのdefinition応答をGraphNodeに変換できること
+- SourceKitLspAdapter getReferencesでLSPのreferences応答をGraphNodeリストに変換できること
