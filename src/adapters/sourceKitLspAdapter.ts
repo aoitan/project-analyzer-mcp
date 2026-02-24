@@ -27,6 +27,12 @@ export class SourceKitLspAdapter implements AnalysisAdapter {
       },
     });
 
+    // initialize responseからサポート情報を検証する
+    const capabilities = (response as any)?.capabilities ?? (response as any)?.serverCapabilities;
+    if (capabilities && capabilities.definitionProvider === false) {
+      logger.info('SourceKit-LSP: definitionProvider is not supported by the server.');
+    }
+
     this.rpc.sendNotification('initialized', {});
     this.isInitialized = true;
     logger.info(`SourceKit-LSP initialized for ${projectPath}`);
@@ -64,8 +70,8 @@ export class SourceKitLspAdapter implements AnalysisAdapter {
       const loc = Array.isArray(response) ? response[0] : response;
       return {
         id: loc.uri + '#' + loc.range.start.line,
-        name: 'ResolvedSymbol', // 実際の名前を取得するには hover 等が追加で必要になる場合がある
-        kind: 'function',
+        name: 'ResolvedSymbol', // TODO: 実際の名前を取得するには hover 等が追加で必要になる場合がある
+        kind: 'function', // TODO: LSPのSymbolKind等から適切なマッピングを行う必要がある
         filePath: loc.uri.replace('file://', ''),
       };
     } catch (error) {
@@ -80,10 +86,15 @@ export class SourceKitLspAdapter implements AnalysisAdapter {
     // Note: LLMやMCPから来る symbolId をどう LSPのURI+Positionに復元するかのマッピングが必要
     // 本実装ではプロトタイプとして、ID形式を "file:///path#line#col" のような形と仮定する
     const parts = symbolId.split('#');
-    if (parts.length < 3) return [];
+    if (parts.length < 2) {
+      logger.warn(
+        `Invalid symbolId format in getReferences: "${symbolId}". Expected "file:///path#line" or "file:///path#line#col".`,
+      );
+      return [];
+    }
     const uri = parts[0];
     const line = parseInt(parts[1], 10);
-    const character = parseInt(parts[2], 10);
+    const character = parts.length > 2 ? parseInt(parts[2], 10) : 0; // characterはオプションとする
 
     try {
       const response = await this.rpc.sendRequest('textDocument/references', {
@@ -96,8 +107,8 @@ export class SourceKitLspAdapter implements AnalysisAdapter {
 
       return response.map((loc) => ({
         id: `${loc.uri}#${loc.range.start.line}#${loc.range.start.character}`,
-        name: 'Reference',
-        kind: 'function',
+        name: 'Reference', // TODO: 実際の名前を取得するには hover 等が追加で必要になる場合がある
+        kind: 'function', // TODO: LSPのSymbolKind等から適切なマッピングを行う必要がある
         filePath: loc.uri.replace('file://', ''),
       }));
     } catch (error) {

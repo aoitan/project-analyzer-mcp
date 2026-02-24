@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { AnalysisAdapter } from '../interfaces/AnalysisAdapter.js';
-import { GraphNode, GraphEdge } from '../types.js';
+import { GraphNode } from '../types.js';
 
 // ---- モックアダプタの実装 ----
 export class MockAnalysisAdapter implements AnalysisAdapter {

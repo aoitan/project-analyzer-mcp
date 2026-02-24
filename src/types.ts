@@ -11,7 +11,31 @@ export interface SimpleDependencyGraph {
 export interface GraphNode {
   id: string; // 一意な識別子（USRやシグネチャなど）
   name: string;
-  kind: 'class' | 'function' | 'property' | 'interface' | 'protocol' | 'module';
+  kind:
+    | 'file'
+    | 'module'
+    | 'namespace'
+    | 'package'
+    | 'class'
+    | 'method'
+    | 'property'
+    | 'field'
+    | 'constructor'
+    | 'enum'
+    | 'interface'
+    | 'function'
+    | 'variable'
+    | 'constant'
+    | 'string'
+    | 'number'
+    | 'boolean'
+    | 'array'
+    | 'object'
+    | 'key'
+    | 'null'
+    | 'event'
+    | 'operator'
+    | 'typeParameter';
   filePath: string;
   metadata?: any; // 自然言語要約などの付加情報
 }

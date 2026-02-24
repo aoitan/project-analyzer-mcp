@@ -19,26 +19,68 @@ export class JsonRpcClient extends EventEmitter {
   }
 
   async start(): Promise<void> {
-    this.process = spawn(this.command, this.args);
+    if (this.process) {
+      // Process already started; nothing to do.
+      return;
+    }
 
-    this.process.stdout?.on('data', (data: Buffer) => this.handleData(data));
-    this.process.stderr?.on('data', (data: Buffer) => {
-      logger.debug(`LSP Stderr: ${data.toString()}`);
-    });
+    return new Promise<void>((resolve, reject) => {
+      const child = spawn(this.command, this.args);
+      this.process = child;
 
-    this.process.on('close', (code) => {
-      logger.info(`LSP process exited with code ${code}`);
-      this.emit('close', code);
-    });
+      let settled = false;
 
-    this.process.on('error', (err) => {
-      logger.error(`LSP process error: ${err}`);
-      this.emit('error', err);
+      child.stdout?.on('data', (data: Buffer) => this.handleData(data));
+      child.stderr?.on('data', (data: Buffer) => {
+        logger.debug(`LSP Stderr: ${data.toString()}`);
+      });
+
+      const onError = (err: Error) => {
+        logger.error(`LSP process error: ${err}`);
+        this.emit('error', err);
+        if (!settled) {
+          settled = true;
+          reject(err);
+        }
+      };
+
+      const onClose = (code: number | null) => {
+        logger.info(`LSP process exited with code ${code}`);
+        this.emit('close', code);
+        this.process = null;
+        if (!settled) {
+          settled = true;
+          reject(new Error(`LSP process exited before it was ready (code ${code})`));
+        }
+      };
+
+      const onSpawn = () => {
+        if (!settled) {
+          settled = true;
+          resolve();
+        }
+        child.removeListener('error', onError);
+        child.removeListener('close', onClose);
+      };
+
+      child.on('close', onClose);
+      child.on('error', onError);
+      child.once('spawn', onSpawn);
     });
   }
 
   async stop(): Promise<void> {
     if (this.process) {
+      const error = new Error('LSP process stopped: pending requests cancelled');
+      for (const { reject } of this.pendingRequests.values()) {
+        try {
+          reject(error);
+        } catch {
+          // Ignore errors thrown by user-provided reject handlers
+        }
+      }
+      this.pendingRequests.clear();
+
       this.process.kill();
       this.process = null;
     }
@@ -89,25 +131,25 @@ export class JsonRpcClient extends EventEmitter {
 
     while (true) {
       const match = this.buffer.match(/Content-Length: (\d+)\r\n\r\n/);
-      if (!match) break;
+      if (!match || match.index === undefined) break;
 
       const contentLength = parseInt(match[1], 10);
-      const headerLength = match[0].length;
-      const totalLength = headerLength + contentLength;
+      const headerEndIndex = match.index + match[0].length;
+      const headerString = this.buffer.slice(0, headerEndIndex);
+      const headerLengthBytes = Buffer.byteLength(headerString, 'utf8');
+      const totalLengthBytes = headerLengthBytes + contentLength;
 
-      if (Buffer.byteLength(this.buffer, 'utf8') < totalLength) {
+      if (Buffer.byteLength(this.buffer, 'utf8') < totalLengthBytes) {
         break; // Wait for more data
       }
 
-      // We have a full string. But string slicing vs byte slicing can be tricky if there's unicode.
-      // Assuming stdout buffers don't split unicode characters in our buffer concatenation for now.
-      const payloadString = this.buffer.slice(headerLength);
-      const payloadBytes = Buffer.from(payloadString, 'utf8');
+      // Convert entire accumulated buffer to bytes and slice using byte offsets
+      const bufferBytes = Buffer.from(this.buffer, 'utf8');
+      const messageBytes = bufferBytes.slice(headerLengthBytes, headerLengthBytes + contentLength);
+      const remainingBytes = bufferBytes.slice(headerLengthBytes + contentLength);
 
-      const messageBytes = payloadBytes.slice(0, contentLength);
       const messageString = messageBytes.toString('utf8');
-
-      this.buffer = payloadBytes.slice(contentLength).toString('utf8');
+      this.buffer = remainingBytes.toString('utf8');
 
       try {
         const message = JSON.parse(messageString);

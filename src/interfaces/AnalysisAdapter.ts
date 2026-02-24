@@ -1,4 +1,4 @@
-import { GraphNode, GraphEdge } from '../types.js';
+import { GraphNode } from '../types.js';
 
 /**
  * AnalysisAdapter Interface
@@ -20,9 +20,15 @@ export interface AnalysisAdapter {
 
   /**
    * 指定したファイルの指定行・列にあるシンボル情報を取得する
+   *
+   * このアダプタインターフェースでは、エディタなどの一般的なUIに合わせて
+   * `line` / `column` は 1-indexed（1 始まり）として扱う。
+   * そのため、LSP など 0-indexed（0 始まり）の位置情報を要求するバックエンドに
+   * 委譲する実装では、呼び出し前に 0-indexed への変換を行うこと。
+   *
    * @param filePath ファイルの絶対パス
-   * @param line 1-indexedの行番号
-   * @param column 1-indexedの列番号
+   * @param line 1-indexedの行番号（LSP に渡す際は 0-indexed に変換すること）
+   * @param column 1-indexedの列番号（LSP に渡す際は 0-indexed に変換すること）
    * @returns シンボル情報を表すGraphNode（見つからない場合はnull）
    */
   getSymbolAtPoint(filePath: string, line: number, column: number): Promise<GraphNode | null>;
