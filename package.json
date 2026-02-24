@@ -7,16 +7,18 @@
     "doc": "doc"
   },
   "scripts": {
-    "test": "npm run build && npm run format && vitest",
+    "test": "npm run build && npm run format && npm run test:unit",
+    "test:unit": "vitest run --exclude \"src/__tests__/integration/**\"",
     "test:integration": "npm run build && vitest run src/__tests__/integration/integration.test.ts",
+    "test:all": "npm run build && npm run format && vitest run && cd kotlin-parser-cli && ./gradlew test",
     "start": "npm run build && node dist/index.js",
     "build": "tsc",
+    "typecheck": "tsc --noEmit",
     "format": "prettier --write \"**/*.{ts,tsx,js,jsx,json,md}\"",
     "render-diagrams": "java -jar tools/plantuml/plantuml.jar -tsvg doc/diagrams/puml/*.puml -o doc/diagrams/svg/",
     "inspector-start": "npx @modelcontextprotocol/inspector npm start",
     "install-sourcekitten": "./scripts/install_sourcekitten.sh",
-    "build-kotlin-parser-cli": "./scripts/build_kotlin_parser_cli.sh",
-    "test:all": "npm test && npm run test:integration && cd kotlin-parser-cli && ./gradlew test"
+    "build-kotlin-parser-cli": "./scripts/build_kotlin_parser_cli.sh"
   },
   "keywords": [],
   "author": "",
