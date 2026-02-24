@@ -9,6 +9,11 @@ import { GraphNode } from '../types.js';
  */
 export interface AnalysisAdapter {
   /**
+   * アダプタが初期化済みかどうかを返す。
+   */
+  readonly initialized: boolean;
+
+  /**
    * アダプタの初期化処理（LSPプロセスの起動など）
    */
   initialize(projectPath: string): Promise<void>;

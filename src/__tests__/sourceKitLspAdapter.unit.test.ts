@@ -50,7 +50,7 @@ describe('SourceKitLspAdapter', () => {
 
     // adapterの実装内で利用している JsonRpcClient インスタンスのsendRequestが呼ばれたか確認
     // （ここでは内部ステートの初期化フラグが立つかどうかで簡易検証）
-    expect(adapter['isInitialized']).toBe(true);
+    expect(adapter.initialized).toBe(true);
   });
 
   it('LSPプロセスの起動に失敗した場合にinitializeがエラーを伝播すること', async () => {
@@ -71,7 +71,7 @@ describe('SourceKitLspAdapter', () => {
     const symbol = await adapter.getSymbolAtPoint('/path/to/file.swift', 10, 5);
 
     expect(symbol).not.toBeNull();
-    expect(symbol?.id).toBe('file:///path/to/Def.swift#15');
+    expect(symbol?.id).toBe('file:///path/to/Def.swift#15#4');
     expect(symbol?.filePath).toBe('/path/to/Def.swift');
   });
 

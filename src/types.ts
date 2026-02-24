@@ -37,7 +37,7 @@ export interface GraphNode {
     | 'operator'
     | 'typeParameter';
   filePath: string;
-  metadata?: any; // 自然言語要約などの付加情報
+  metadata?: Record<string, unknown>; // 自然言語要約などの付加情報
 }
 
 // ナレッジグラフ用のエッジ構造
