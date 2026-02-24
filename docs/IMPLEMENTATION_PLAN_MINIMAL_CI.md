@@ -33,7 +33,7 @@ TypeScript (MCP Server) と Kotlin (Parser CLI) の品質を担保するため�
         - `test-typescript`: `npm run test:unit` を実行。
         - `build-kotlin`: JDK 17+ で Gradle ビルドを実行。
 
-3. [ ] **Step 4: 計画外事項の Issue 化**
+3. [ ] **Step 3: 計画外事項の Issue 化**
     - *Action*: `issues/ci_full_integration_tests.md` 等を作成し、今回スキップした結合テストの自動化を記録。
 
 ## 4. 検証プラン (Verification Plan)
