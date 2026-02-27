@@ -4,8 +4,9 @@ import * as fs from 'fs/promises';
 import { glob } from 'glob';
 import * as path from 'path';
 import logger from './utils/logger.js';
-import { cacheManager } from './cache/CacheManager.js';
+import { CacheManager } from './cache/CacheManager.js';
 import { calculateHash } from './utils/hash.js';
+import { config } from './config.js';
 
 const MAX_CHUNK_LINES = 50; // ページングを適用する閾値（行数）
 
@@ -26,7 +27,7 @@ function parsePageToken(token: string): PagingInfo | null {
   try {
     return JSON.parse(Buffer.from(token, 'base64').toString('utf-8'));
   } catch (e) {
-    logger.error(`Failed to parse page token: ${token}`, e);
+    logger.error('Failed to parse page token', e instanceof Error ? { message: e.message, stack: e.stack } : e);
     return null;
   }
 }
@@ -97,9 +98,11 @@ function applyPaging(
 
 export class AnalysisService {
   private chunksDir: string;
+  private cache: CacheManager;
 
-  constructor(chunksDir: string = './data/chunks') {
+  constructor(chunksDir: string = config.cacheDir) {
     this.chunksDir = chunksDir;
+    this.cache = new CacheManager(this.chunksDir);
   }
 
   private toSafeFileName(name: string): string {
@@ -129,7 +132,7 @@ export class AnalysisService {
    * @returns 生成されたチャンクIDのリスト
    */
   private async analyzeFile(filePath: string): Promise<string[]> {
-    console.log(`Analyzing file: ${filePath}`);
+    logger.debug(`Analyzing file: ${filePath}`);
     let parser: IParser;
     if (filePath.endsWith('.swift')) {
       parser = ParserFactory.getParser(filePath, 'swift');
@@ -154,7 +157,7 @@ export class AnalysisService {
     const processAndSaveChunks = async (chunkList: CodeChunk[]) => {
       for (const chunk of chunkList) {
         chunkIds.push(chunk.id);
-        await cacheManager.set(chunk.id, chunk);
+        await this.cache.set(chunk.id, chunk);
         if (chunk.children && chunk.children.length > 0) {
           await processAndSaveChunks(chunk.children);
         }
@@ -162,7 +165,7 @@ export class AnalysisService {
     };
 
     await processAndSaveChunks(chunksWithLanguage);
-    await cacheManager.updateFileMetadata(filePath, hash, chunkIds);
+    await this.cache.updateFileMetadata(filePath, hash, chunkIds);
     return chunkIds;
   }
 
@@ -174,19 +177,19 @@ export class AnalysisService {
       const content = await fs.readFile(filePath, 'utf-8');
       const hash = calculateHash(content);
 
-      if (await cacheManager.isFileChanged(filePath, hash)) {
+      if (await this.cache.isFileChanged(filePath, hash)) {
         logger.info(`AnalysisService: File changed, updating on-demand: ${filePath}`);
         // 古いキャッシュをクリア
-        await cacheManager.clearCacheForFile(filePath);
+        await this.cache.clearCacheForFile(filePath);
         // 再解析
         await this.analyzeFile(filePath);
       }
     } catch (error: any) {
       if (error.code === 'ENOENT') {
         logger.warn(`AnalysisService: File not found, clearing cache: ${filePath}`);
-        await cacheManager.clearCacheForFile(filePath);
+        await this.cache.clearCacheForFile(filePath);
       } else {
-        logger.error(`Failed to ensure latest analysis for ${filePath}: ${error}`);
+        logger.error(`Failed to ensure latest analysis for ${filePath}`, error instanceof Error ? { message: error.message, stack: error.stack } : error);
       }
     }
   }
@@ -209,7 +212,7 @@ export class AnalysisService {
     endLine?: number;
   } | null> {
     logger.info(`AnalysisService: Getting chunk: ${chunkId}`);
-    const chunk = await cacheManager.get(chunkId);
+    const chunk = await this.cache.get(chunkId);
     if (!chunk) {
       return null;
     }
@@ -218,7 +221,7 @@ export class AnalysisService {
     await this.ensureLatestFileAnalysis(chunk.filePath);
 
     // 再パース後に再度取得（変更があった場合や削除された場合のため）
-    const latestChunk = await cacheManager.get(chunkId);
+    const latestChunk = await this.cache.get(chunkId);
     if (!latestChunk) {
       return null; // ファイルが削除されたか、再パースでIDが変わった場合
     }
@@ -269,11 +272,11 @@ export class AnalysisService {
     // クエリ前に対象ファイルの最新状態を確認
     await this.ensureLatestFileAnalysis(filePath);
 
-    const allChunkIds = await cacheManager.listAllChunkIds();
+    const allChunkIds = await this.cache.listAllChunkIds();
     const allChunksInFile: CodeChunk[] = [];
 
     for (const chunkId of allChunkIds) {
-      const chunk = await cacheManager.get(chunkId);
+      const chunk = await this.cache.get(chunkId);
       if (chunk && chunk.filePath === filePath) {
         allChunksInFile.push(chunk);
       }
@@ -291,11 +294,11 @@ export class AnalysisService {
     // リスト取得前に対象ファイルの最新状態を確認
     await this.ensureLatestFileAnalysis(filePath);
 
-    const allChunkIds = await cacheManager.listAllChunkIds();
+    const allChunkIds = await this.cache.listAllChunkIds();
     const allChunksInFile: CodeChunk[] = [];
 
     for (const chunkId of allChunkIds) {
-      const chunk = await cacheManager.get(chunkId);
+      const chunk = await this.cache.get(chunkId);
       if (chunk && chunk.filePath === filePath) {
         allChunksInFile.push(chunk);
       }
@@ -332,9 +335,9 @@ export class AnalysisService {
     // 取得前に対象ファイルの最新状態を確認
     await this.ensureLatestFileAnalysis(filePath);
 
-    const allChunkIds = await cacheManager.listAllChunkIds();
+    const allChunkIds = await this.cache.listAllChunkIds();
     for (const chunkId of allChunkIds) {
-      const chunk = await cacheManager.get(chunkId);
+      const chunk = await this.cache.get(chunkId);
       if (chunk && chunk.filePath === filePath && chunk.signature === functionSignature) {
         const lines = chunk.content.split('\n');
         if (lines.length > pageSize || pageToken) {

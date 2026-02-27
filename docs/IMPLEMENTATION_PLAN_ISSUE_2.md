@@ -18,11 +18,11 @@
 
 ## 3. 実装ステップ (Implementation Steps)
 
-1. [ ] **Step 1: CacheManager の物理削除実装**
+1. [x] **Step 1: CacheManager の物理削除実装**
     - *Action*: メタデータに `chunkIds: string[]` を保持させ、`clearCacheForFile` でこれら全てのファイルを `fs.rm` する。
-2. [ ] **Step 2: AnalysisService の削除追従**
+2. [x] **Step 2: AnalysisService の削除追従**
     - *Action*: `ensureLatestFileAnalysis` で `ENOENT` を検知した際、キャッシュをクリアし、クエリを中断（null返却）する。
-3. [ ] **Step 3: テストによる検証 (TDD)**
+3. [x] **Step 3: テストによる検証 (TDD)**
     - *Action*: `AnalysisService` のユニットテストで `isFileChanged=true` のモックを作成し、再パースフローを検証。
     - *Action*: 統合テストでファイル削除後の `get_chunk` が `null` を返すことを検証。
 
