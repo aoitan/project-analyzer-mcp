@@ -28,6 +28,7 @@ tools/plantuml/plantuml.jar
 
 # local only
 local.*.md
+checkpoint/
 
 # Kotlin CLI
 kotlin-parser-cli/build/
@@ -35,3 +36,4 @@ kotlin-parser-cli/.gradle/
 
 # Test Project
 src/__tests__/integration/test_project/
+src/__tests__/integration/lazy_test_project/

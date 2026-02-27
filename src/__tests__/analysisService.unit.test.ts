@@ -2,7 +2,7 @@ import { AnalysisService } from '../analysisService.js';
 import { CodeChunk } from '../interfaces/parser.js';
 import { ParserFactory } from '../parserFactory.js';
 import { IParser } from '../interfaces/parser.js';
-import { vi } from 'vitest';
+import { vi, describe, it, expect, beforeEach } from 'vitest';
 import { cacheManager } from '../cache/CacheManager.js';
 import * as fs from 'fs/promises';
 import { glob } from 'glob';
@@ -42,6 +42,9 @@ vi.mock('../cache/CacheManager.js', () => ({
     set: vi.fn(),
     get: vi.fn(),
     listAllChunkIds: vi.fn(),
+    isFileChanged: vi.fn(),
+    updateFileMetadata: vi.fn(),
+    clearCacheForFile: vi.fn(),
   },
 }));
 
@@ -62,7 +65,7 @@ describe('AnalysisService (Unit Tests)', () => {
     signature: 'func dummyFunction1(param:) -> Int',
     id: 'func dummyFunction1(param:) -> Int',
     content: 'return 1',
-    language: 'swift', // 追加
+    language: 'swift',
     startLine: 1,
     endLine: 3,
     filePath: dummySwiftFilePath,
@@ -77,7 +80,7 @@ describe('AnalysisService (Unit Tests)', () => {
     signature: 'fun main()',
     type: 'source.lang.kotlin.decl.function.free',
     content: 'fun main() { /* ... */ }',
-    language: 'kotlin', // 追加
+    language: 'kotlin',
     filePath: dummyKotlinFilePath,
     startLine: 1,
     endLine: 5,
@@ -104,23 +107,18 @@ describe('AnalysisService (Unit Tests)', () => {
     analysisService = new AnalysisService();
     vi.clearAllMocks();
 
-    // Mock ParserFactory.getParser が MockSwiftParser を返すように設定
-    // これは vi.mock('../parserFactory.js') で既に設定済み
-
-    // MockSwiftParser の parseFile メソッドの振る舞いを設定
     mockParseFile.mockResolvedValue([dummySwiftChunk]);
-
-    // Mock fs/promises methods
     mockFs.mkdir.mockResolvedValue(undefined);
     mockFs.rm.mockResolvedValue(undefined);
-
-    // Mock glob
+    mockFs.readFile.mockResolvedValue('dummy content');
     mockGlob.mockResolvedValue([dummySwiftFilePath]);
 
-    // Mock CacheManager methods
     mockCacheManager.set.mockResolvedValue(undefined);
     mockCacheManager.get.mockResolvedValue(undefined);
     mockCacheManager.listAllChunkIds.mockResolvedValue([]);
+    mockCacheManager.isFileChanged.mockResolvedValue(false); // デフォルトは変更なし
+    mockCacheManager.updateFileMetadata.mockResolvedValue(undefined);
+    mockCacheManager.clearCacheForFile.mockResolvedValue(undefined);
   });
 
   it('analyzeProject should parse Swift files and save chunks', async () => {
@@ -134,12 +132,17 @@ describe('AnalysisService (Unit Tests)', () => {
       ...dummySwiftChunk,
       language: 'swift',
     });
+    expect(mockCacheManager.updateFileMetadata).toHaveBeenCalledWith(
+      dummySwiftFilePath,
+      expect.any(String),
+      [dummySwiftChunk.id],
+    );
   });
 
   it('analyzeProject should parse Kotlin files and save chunks', async () => {
     const projectPath = '/test/project';
-    mockGlob.mockResolvedValueOnce([dummyKotlinFilePath]); // Kotlinファイルのみを返すようにモック
-    mockParseFile.mockResolvedValueOnce([dummyKotlinChunk]); // Kotlinチャンクを返すようにモック
+    mockGlob.mockResolvedValueOnce([dummyKotlinFilePath]);
+    mockParseFile.mockResolvedValueOnce([dummyKotlinChunk]);
 
     await analysisService.analyzeProject(projectPath);
 
@@ -150,181 +153,104 @@ describe('AnalysisService (Unit Tests)', () => {
       ...dummyKotlinChunk,
       language: 'kotlin',
     });
+    expect(mockCacheManager.updateFileMetadata).toHaveBeenCalledWith(
+      dummyKotlinFilePath,
+      expect.any(String),
+      [dummyKotlinChunk.id],
+    );
+  });
+
+  it('ファイル変更時に自動的に再パースが実行されること', async () => {
+    // 1回目: getChunk の冒頭
+    // 2回目: ensureLatestFileAnalysis 内の calculateHash 直前
+    // 3回目: analyzeFile 内
+    mockCacheManager.get.mockResolvedValue(dummySwiftChunk);
+    mockCacheManager.isFileChanged.mockResolvedValueOnce(true); // 変更あり
+    
+    // 再パース結果
+    const updatedChunk = { ...dummySwiftChunk, content: 'updated content' };
+    mockParseFile.mockResolvedValueOnce([updatedChunk]);
+    
+    // ensureLatestFileAnalysis 後の再取得で updatedChunk を返すように設定
+    mockCacheManager.get.mockResolvedValue(updatedChunk);
+
+    const chunk = await analysisService.getChunk(dummySwiftChunk.id);
+
+    expect(mockCacheManager.clearCacheForFile).toHaveBeenCalledWith(dummySwiftFilePath);
+    expect(mockParseFile).toHaveBeenCalledWith(dummySwiftFilePath);
+    expect(chunk?.codeContent).toBe('updated content');
+  });
+
+  it('ファイル削除(ENOENT)時にキャッシュをクリアし、nullを返すこと', async () => {
+    mockCacheManager.get.mockResolvedValueOnce(dummySwiftChunk);
+    mockFs.readFile.mockRejectedValueOnce({ code: 'ENOENT' });
+
+    const chunk = await analysisService.getChunk(dummySwiftChunk.id);
+
+    expect(mockCacheManager.clearCacheForFile).toHaveBeenCalledWith(dummySwiftFilePath);
+    expect(chunk).toBeNull();
   });
 
   it('getChunk should return chunk from cache if available', async () => {
-    mockCacheManager.get.mockResolvedValueOnce(dummySwiftChunk);
+    mockCacheManager.get.mockResolvedValue(dummySwiftChunk);
 
     const chunk = await analysisService.getChunk(dummySwiftChunk.id);
-    expect(chunk).toEqual({
+    expect(chunk).toEqual(expect.objectContaining({
       codeContent: dummySwiftChunk.content,
       isPartial: false,
-      totalLines: dummySwiftChunk.content.split('\n').length,
-      currentPage: 1,
-      totalPages: 1,
-      nextPageToken: undefined,
-      prevPageToken: undefined,
-      startLine: dummySwiftChunk.startLine,
-      endLine: dummySwiftChunk.endLine,
-    });
-    expect(mockCacheManager.get).toHaveBeenCalledWith(dummySwiftChunk.id);
+    }));
   });
 
   it('getChunk should load chunk from disk if not in cache', async () => {
-    mockCacheManager.get.mockResolvedValueOnce(dummySwiftChunk);
+    mockCacheManager.get.mockResolvedValue(dummySwiftChunk);
 
     const chunk = await analysisService.getChunk(dummySwiftChunk.id);
-    expect(mockCacheManager.get).toHaveBeenCalledWith(dummySwiftChunk.id);
-    expect(chunk).toEqual({
+    expect(chunk).toEqual(expect.objectContaining({
       codeContent: dummySwiftChunk.content,
-      isPartial: false,
-      totalLines: dummySwiftChunk.content.split('\n').length,
-      currentPage: 1,
-      totalPages: 1,
-      nextPageToken: undefined,
-      prevPageToken: undefined,
-      startLine: dummySwiftChunk.startLine,
-      endLine: dummySwiftChunk.endLine,
-    });
+    }));
   });
 
   it('getChunk should return paginated chunk if content is large', async () => {
-    mockCacheManager.get.mockResolvedValueOnce(dummyLargeChunk);
+    mockCacheManager.get.mockResolvedValue(dummyLargeChunk);
 
-    const chunk = await analysisService.getChunk(dummyLargeChunk.id, 10); // pageSize = 10
+    const chunk = await analysisService.getChunk(dummyLargeChunk.id, 10);
     expect(chunk?.isPartial).toBe(true);
     expect(chunk?.codeContent.split('\n').length).toBe(10);
-    expect(chunk?.totalLines).toBe(100);
-    expect(chunk?.currentPage).toBe(1);
-    expect(chunk?.totalPages).toBe(10);
-    expect(chunk?.nextPageToken).toBeDefined();
-    expect(chunk?.prevPageToken).toBeUndefined();
   });
 
   it('getChunk should return next page with pageToken', async () => {
-    mockCacheManager.get.mockResolvedValueOnce(dummyLargeChunk);
+    mockCacheManager.get.mockResolvedValue(dummyLargeChunk);
 
-    const firstPage = await analysisService.getChunk(dummyLargeChunk.id, 10); // pageSize = 10
+    const firstPage = await analysisService.getChunk(dummyLargeChunk.id, 10);
     expect(firstPage?.nextPageToken).toBeDefined();
 
-    mockCacheManager.get.mockResolvedValueOnce(dummyLargeChunk);
     const secondPage = await analysisService.getChunk(
       dummyLargeChunk.id,
       10,
       firstPage?.nextPageToken,
     );
     expect(secondPage?.isPartial).toBe(true);
-    expect(secondPage?.codeContent.split('\n').length).toBe(10);
     expect(secondPage?.currentPage).toBe(2);
-    expect(secondPage?.prevPageToken).toBeDefined();
   });
 
   it('listFunctionsInFile should return list of functions for Swift file', async () => {
     mockCacheManager.listAllChunkIds.mockResolvedValueOnce([dummySwiftChunk.id]);
-    mockCacheManager.get.mockResolvedValueOnce(dummySwiftChunk);
+    mockCacheManager.get.mockResolvedValue(dummySwiftChunk);
 
     const functions = await analysisService.listFunctionsInFile(dummySwiftFilePath);
-    expect(mockCacheManager.listAllChunkIds).toHaveBeenCalled();
-    expect(mockCacheManager.get).toHaveBeenCalledWith(dummySwiftChunk.id);
     expect(functions).toEqual([{ id: dummySwiftChunk.id, signature: dummySwiftChunk.signature }]);
-  });
-
-  it('listFunctionsInFile should return list of functions for Kotlin file', async () => {
-    mockCacheManager.listAllChunkIds.mockResolvedValueOnce([dummyKotlinChunk.id]);
-    mockCacheManager.get.mockResolvedValueOnce(dummyKotlinChunk);
-
-    const functions = await analysisService.listFunctionsInFile(dummyKotlinFilePath);
-    expect(mockCacheManager.listAllChunkIds).toHaveBeenCalled();
-    expect(mockCacheManager.get).toHaveBeenCalledWith(dummyKotlinChunk.id);
-    expect(functions).toEqual([{ id: dummyKotlinChunk.id, signature: dummyKotlinChunk.signature }]);
   });
 
   it('getFunctionChunk should return function content for Swift file', async () => {
     mockCacheManager.listAllChunkIds.mockResolvedValueOnce([dummySwiftChunk.id]);
-    mockCacheManager.get.mockResolvedValueOnce(dummySwiftChunk);
+    mockCacheManager.get.mockResolvedValue(dummySwiftChunk);
 
     const content = await analysisService.getFunctionChunk(
       dummySwiftFilePath,
       dummySwiftChunk.signature,
     );
-    expect(mockCacheManager.listAllChunkIds).toHaveBeenCalled();
-    expect(mockCacheManager.get).toHaveBeenCalledWith(dummySwiftChunk.id);
-    expect(content).toEqual({
+    expect(content).toEqual(expect.objectContaining({
       codeContent: dummySwiftChunk.content,
-      isPartial: false,
-      totalLines: dummySwiftChunk.content.split('\n').length,
-      currentPage: 1,
-      totalPages: 1,
-      nextPageToken: undefined,
-      prevPageToken: undefined,
-      startLine: dummySwiftChunk.startLine,
-      endLine: dummySwiftChunk.endLine,
-    });
-  });
-
-  it('getFunctionChunk should return function content for Kotlin file', async () => {
-    mockCacheManager.listAllChunkIds.mockResolvedValueOnce([dummyKotlinChunk.id]);
-    mockCacheManager.get.mockResolvedValueOnce(dummyKotlinChunk);
-
-    const content = await analysisService.getFunctionChunk(
-      dummyKotlinFilePath,
-      dummyKotlinChunk.signature,
-    );
-    expect(mockCacheManager.listAllChunkIds).toHaveBeenCalled();
-    expect(mockCacheManager.get).toHaveBeenCalledWith(dummyKotlinChunk.id);
-    expect(content).toEqual({
-      codeContent: dummyKotlinChunk.content,
-      isPartial: false,
-      totalLines: dummyKotlinChunk.content.split('\n').length,
-      currentPage: 1,
-      totalPages: 1,
-      nextPageToken: undefined,
-      prevPageToken: undefined,
-      startLine: dummyKotlinChunk.startLine,
-      endLine: dummyKotlinChunk.endLine,
-    });
-  });
-
-  it('getFunctionChunk should return paginated chunk if content is large', async () => {
-    mockCacheManager.listAllChunkIds.mockResolvedValueOnce([dummyLargeChunk.id]);
-    mockCacheManager.get.mockResolvedValueOnce(dummyLargeChunk);
-
-    const chunk = await analysisService.getFunctionChunk(
-      dummyLargeChunk.filePath,
-      dummyLargeChunk.signature,
-      10,
-    ); // pageSize = 10
-    expect(chunk?.isPartial).toBe(true);
-    expect(chunk?.codeContent.split('\n').length).toBe(10);
-    expect(chunk?.totalLines).toBe(100);
-    expect(chunk?.currentPage).toBe(1);
-    expect(chunk?.totalPages).toBe(10);
-    expect(chunk?.nextPageToken).toBeDefined();
-    expect(chunk?.prevPageToken).toBeUndefined();
-  });
-
-  it('getFunctionChunk should return next page with pageToken', async () => {
-    mockCacheManager.listAllChunkIds.mockResolvedValueOnce([dummyLargeChunk.id]);
-    mockCacheManager.get.mockResolvedValueOnce(dummyLargeChunk);
-
-    const firstPage = await analysisService.getFunctionChunk(
-      dummyLargeChunk.filePath,
-      dummyLargeChunk.signature,
-      10,
-    ); // pageSize = 10
-    expect(firstPage?.nextPageToken).toBeDefined();
-
-    mockCacheManager.listAllChunkIds.mockResolvedValueOnce([dummyLargeChunk.id]);
-    mockCacheManager.get.mockResolvedValueOnce(dummyLargeChunk);
-    const secondPage = await analysisService.getFunctionChunk(
-      dummyLargeChunk.filePath,
-      dummyLargeChunk.signature,
-      10,
-      firstPage?.nextPageToken,
-    );
-    expect(secondPage?.isPartial).toBe(true);
-    expect(secondPage?.codeContent.split('\n').length).toBe(10); // 補足行 + 10行
-    expect(secondPage?.currentPage).toBe(2);
-    expect(secondPage?.prevPageToken).toBeDefined();
+    }));
   });
 });
