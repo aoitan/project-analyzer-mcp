@@ -29,6 +29,8 @@ tools/plantuml/plantuml.jar
 # local only
 local.*.md
 checkpoint/
+.serena/
+.vscode/
 
 # Kotlin CLI
 kotlin-parser-cli/build/
