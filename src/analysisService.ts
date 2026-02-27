@@ -4,7 +4,9 @@ import * as fs from 'fs/promises';
 import { glob } from 'glob';
 import * as path from 'path';
 import logger from './utils/logger.js';
-import { cacheManager } from './cache/CacheManager.js'; // CacheManagerをインポート
+import { CacheManager } from './cache/CacheManager.js';
+import { calculateHash } from './utils/hash.js';
+import { config } from './config.js';
 
 const MAX_CHUNK_LINES = 50; // ページングを適用する閾値（行数）
 
@@ -25,7 +27,10 @@ function parsePageToken(token: string): PagingInfo | null {
   try {
     return JSON.parse(Buffer.from(token, 'base64').toString('utf-8'));
   } catch (e) {
-    logger.error(`Failed to parse page token: ${token}`, e);
+    logger.error(
+      'Failed to parse page token',
+      e instanceof Error ? { message: e.message, stack: e.stack } : e,
+    );
     return null;
   }
 }
@@ -96,15 +101,20 @@ function applyPaging(
 
 export class AnalysisService {
   private chunksDir: string;
+  private cache: CacheManager;
 
-  constructor(chunksDir: string = './data/chunks') {
+  constructor(chunksDir: string = config.cacheDir) {
     this.chunksDir = chunksDir;
+    this.cache = new CacheManager(this.chunksDir);
   }
 
   private toSafeFileName(name: string): string {
     return name.replace(/[^a-zA-Z0-9-_.\/]/g, '_');
   }
 
+  /**
+   * プロジェクト全体を解析する。
+   */
   async analyzeProject(projectPath: string): Promise<void> {
     logger.info(`AnalysisService: Analyzing project: ${projectPath}`);
     // 既存のチャンクファイルを削除して、常に最新の解析結果を保存するようにする
@@ -115,34 +125,78 @@ export class AnalysisService {
     const kotlinFiles = await glob('**/*.kt', { cwd: projectPath, absolute: true });
     const allFiles = [...swiftFiles, ...kotlinFiles];
 
+    for (const file of allFiles) {
+      await this.analyzeFile(file);
+    }
+  }
+
+  /**
+   * 特定のファイルを解析し、キャッシュを更新する。
+   * @returns 生成されたチャンクIDのリスト
+   */
+  private async analyzeFile(filePath: string): Promise<string[]> {
+    logger.debug(`Analyzing file: ${filePath}`);
+    let parser: IParser;
+    if (filePath.endsWith('.swift')) {
+      parser = ParserFactory.getParser(filePath, 'swift');
+    } else if (filePath.endsWith('.kt')) {
+      parser = ParserFactory.getParser(filePath, 'kotlin');
+    } else {
+      logger.warn(`Unsupported file type: ${filePath}`);
+      return [];
+    }
+
+    const content = await fs.readFile(filePath, 'utf-8');
+    const hash = calculateHash(content);
+
+    const chunks = await parser.parseFile(filePath);
+    // 各チャンクに言語情報を付与
+    const chunksWithLanguage = chunks.map((chunk) => ({
+      ...chunk,
+      language: filePath.endsWith('.swift') ? 'swift' : 'kotlin',
+    }));
+
+    const chunkIds: string[] = [];
     const processAndSaveChunks = async (chunkList: CodeChunk[]) => {
       for (const chunk of chunkList) {
-        await cacheManager.set(chunk.id, chunk); // CacheManager経由で保存
+        chunkIds.push(chunk.id);
+        await this.cache.set(chunk.id, chunk);
         if (chunk.children && chunk.children.length > 0) {
           await processAndSaveChunks(chunk.children);
         }
       }
     };
 
-    console.log(`files: ${allFiles}`);
-    for (const file of allFiles) {
-      console.log(`file: ${file}`);
-      let parser: IParser;
-      if (file.endsWith('.swift')) {
-        parser = ParserFactory.getParser(file, 'swift');
-      } else if (file.endsWith('.kt')) {
-        parser = ParserFactory.getParser(file, 'kotlin');
-      } else {
-        logger.warn(`Unsupported file type: ${file}`);
-        continue;
+    await processAndSaveChunks(chunksWithLanguage);
+    await this.cache.updateFileMetadata(filePath, hash, chunkIds);
+    return chunkIds;
+  }
+
+  /**
+   * ファイルが変更されているか確認し、必要なら再パースする（Lazy Update）。
+   */
+  private async ensureLatestFileAnalysis(filePath: string): Promise<void> {
+    try {
+      const content = await fs.readFile(filePath, 'utf-8');
+      const hash = calculateHash(content);
+
+      if (await this.cache.isFileChanged(filePath, hash)) {
+        logger.info(`AnalysisService: File changed, updating on-demand: ${filePath}`);
+        // 古いキャッシュをクリア
+        await this.cache.clearCacheForFile(filePath);
+        // 再解析
+        await this.analyzeFile(filePath);
       }
-      const chunks = await parser.parseFile(file);
-      // 各チャンクに言語情報を付与
-      const chunksWithLanguage = chunks.map((chunk) => ({
-        ...chunk,
-        language: file.endsWith('.swift') ? 'swift' : 'kotlin',
-      }));
-      await processAndSaveChunks(chunksWithLanguage);
+    } catch (error: any) {
+      if (error.code === 'ENOENT') {
+        logger.warn(`AnalysisService: File not found, clearing cache: ${filePath}`);
+        await this.cache.clearCacheForFile(filePath);
+      } else {
+        logger.error(
+          `Failed to ensure latest analysis for ${filePath}`,
+          error instanceof Error ? { message: error.message, stack: error.stack } : error,
+        );
+      }
     }
   }
 
@@ -164,14 +218,23 @@ export class AnalysisService {
     endLine?: number;
   } | null> {
     logger.info(`AnalysisService: Getting chunk: ${chunkId}`);
-    const chunk = await cacheManager.get(chunkId);
+    const chunk = await this.cache.get(chunkId);
     if (!chunk) {
       return null;
     }
 
-    const lines = chunk.content.split('\n');
+    // 取得前に対象ファイルの最新状態を確認
+    await this.ensureLatestFileAnalysis(chunk.filePath);
+
+    // 再パース後に再度取得（変更があった場合や削除された場合のため）
+    const latestChunk = await this.cache.get(chunkId);
+    if (!latestChunk) {
+      return null; // ファイルが削除されたか、再パースでIDが変わった場合
+    }
+
+    const lines = latestChunk.content.split('\n');
     if (lines.length > pageSize || pageToken) {
-      const paginatedChunk = applyPaging(chunk, pageSize, pageToken);
+      const paginatedChunk = applyPaging(latestChunk, pageSize, pageToken);
       const message = paginatedChunk.isPartial
         ? `このチャンクは巨大なため、一部のみを表示しています。\n(${paginatedChunk.currentPage}/${paginatedChunk.totalPages}ページ目、${paginatedChunk.startLine}-${paginatedChunk.endLine}行目)\n${paginatedChunk.nextPageToken ? `次の部分を取得するには、get_chunk ツールに pageToken: "${paginatedChunk.nextPageToken}" を指定してリクエストしてください。` : ''}\n${paginatedChunk.prevPageToken ? `前の部分を取得するには、get_chunk ツールに pageToken: "${paginatedChunk.prevPageToken}" を指定してリクエストしてください。` : ''}\n\n`
         : undefined;
@@ -191,21 +254,16 @@ export class AnalysisService {
     }
 
     return {
-      codeContent: chunk.content,
+      codeContent: latestChunk.content,
       isPartial: false,
       totalLines: lines.length,
       currentPage: 1,
       totalPages: 1,
       nextPageToken: undefined,
       prevPageToken: undefined,
-      startLine: chunk.startLine,
-      endLine: chunk.endLine,
+      startLine: latestChunk.startLine,
+      endLine: latestChunk.endLine,
     };
-  }
-
-  private async getSwiftFiles(projectPath: string): Promise<string[]> {
-    // このメソッドはもはや不要だが、既存のコードとの互換性のため残す
-    return glob('**/*.swift', { cwd: projectPath, absolute: true });
   }
 
   async findFiles(pattern: string): Promise<string[]> {
@@ -217,11 +275,14 @@ export class AnalysisService {
     filePath: string,
     functionQuery: string,
   ): Promise<{ id: string; signature: string }[]> {
-    const allChunkIds = await cacheManager.listAllChunkIds();
+    // クエリ前に対象ファイルの最新状態を確認
+    await this.ensureLatestFileAnalysis(filePath);
+
+    const allChunkIds = await this.cache.listAllChunkIds();
     const allChunksInFile: CodeChunk[] = [];
 
     for (const chunkId of allChunkIds) {
-      const chunk = await cacheManager.get(chunkId);
+      const chunk = await this.cache.get(chunkId);
       if (chunk && chunk.filePath === filePath) {
         allChunksInFile.push(chunk);
       }
@@ -235,11 +296,15 @@ export class AnalysisService {
 
   async listFunctionsInFile(filePath: string): Promise<{ id: string; signature: string }[]> {
     logger.info(`AnalysisService: Listing functions in file: ${filePath}`);
-    const allChunkIds = await cacheManager.listAllChunkIds();
+
+    // リスト取得前に対象ファイルの最新状態を確認
+    await this.ensureLatestFileAnalysis(filePath);
+
+    const allChunkIds = await this.cache.listAllChunkIds();
     const allChunksInFile: CodeChunk[] = [];
 
     for (const chunkId of allChunkIds) {
-      const chunk = await cacheManager.get(chunkId);
+      const chunk = await this.cache.get(chunkId);
       if (chunk && chunk.filePath === filePath) {
         allChunksInFile.push(chunk);
       }
@@ -272,9 +337,13 @@ export class AnalysisService {
     endLine?: number;
   } | null> {
     logger.info(`AnalysisService: Getting function chunk for ${functionSignature} in ${filePath}`);
-    const allChunkIds = await cacheManager.listAllChunkIds();
+
+    // 取得前に対象ファイルの最新状態を確認
+    await this.ensureLatestFileAnalysis(filePath);
+
+    const allChunkIds = await this.cache.listAllChunkIds();
     for (const chunkId of allChunkIds) {
-      const chunk = await cacheManager.get(chunkId);
+      const chunk = await this.cache.get(chunkId);
       if (chunk && chunk.filePath === filePath && chunk.signature === functionSignature) {
         const lines = chunk.content.split('\n');
         if (lines.length > pageSize || pageToken) {
