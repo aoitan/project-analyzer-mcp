@@ -27,7 +27,10 @@ function parsePageToken(token: string): PagingInfo | null {
   try {
     return JSON.parse(Buffer.from(token, 'base64').toString('utf-8'));
   } catch (e) {
-    logger.error('Failed to parse page token', e instanceof Error ? { message: e.message, stack: e.stack } : e);
+    logger.error(
+      'Failed to parse page token',
+      e instanceof Error ? { message: e.message, stack: e.stack } : e,
+    );
     return null;
   }
 }
@@ -189,7 +192,10 @@ export class AnalysisService {
         logger.warn(`AnalysisService: File not found, clearing cache: ${filePath}`);
         await this.cache.clearCacheForFile(filePath);
       } else {
-        logger.error(`Failed to ensure latest analysis for ${filePath}`, error instanceof Error ? { message: error.message, stack: error.stack } : error);
+        logger.error(
+          `Failed to ensure latest analysis for ${filePath}`,
+          error instanceof Error ? { message: error.message, stack: error.stack } : error,
+        );
       }
     }
   }

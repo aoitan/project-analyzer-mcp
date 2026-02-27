@@ -52,7 +52,7 @@ describe('AnalysisService (Unit Tests)', () => {
   let analysisService: AnalysisService;
   const dummySwiftFilePath = '/test/project/dummy.swift';
   const dummyKotlinFilePath = '/test/project/dummy.kt';
-  
+
   const dummySwiftChunk: CodeChunk = {
     name: 'dummyFunction1(param:)',
     type: 'source.lang.swift.decl.function.free',
@@ -70,11 +70,11 @@ describe('AnalysisService (Unit Tests)', () => {
 
   beforeEach(async () => {
     vi.clearAllMocks();
-    
+
     // 実物の CacheManager が動くようにディレクトリを準備
     // 注: mockFs.mkdir などを呼んでいるため、実際にはディスクには書かれないが、
     // CacheManager 内部で fs/promises を使っている場合はモックの影響を受ける。
-    
+
     analysisService = new AnalysisService(TEST_CHUNKS_DIR);
 
     mockParseFile.mockResolvedValue([dummySwiftChunk]);
@@ -84,7 +84,7 @@ describe('AnalysisService (Unit Tests)', () => {
     mockFs.writeFile.mockResolvedValue(undefined);
     mockFs.unlink.mockResolvedValue(undefined);
     mockFs.readdir.mockResolvedValue([]);
-    
+
     mockGlob.mockResolvedValue([dummySwiftFilePath]);
   });
 
@@ -95,7 +95,7 @@ describe('AnalysisService (Unit Tests)', () => {
     expect(mockGlob).toHaveBeenCalledWith('**/*.swift', { cwd: projectPath, absolute: true });
     expect(ParserFactory.getParser).toHaveBeenCalledWith(dummySwiftFilePath, 'swift');
     expect(mockParseFile).toHaveBeenCalledWith(dummySwiftFilePath);
-    
+
     // キャッシュへの保存が行われたことを確認
     expect(mockFs.writeFile).toHaveBeenCalled();
   });
@@ -104,7 +104,7 @@ describe('AnalysisService (Unit Tests)', () => {
     // 最初の get で既存キャッシュがあると見せかけるための設定が必要だが、
     // fs が完全にモックされているため、実物の CacheManager の挙動を
     // fs モックの返り値で制御する。
-    
+
     mockFs.readFile.mockRejectedValueOnce({ code: 'ENOENT' }); // ensureLatestFileAnalysis で失敗
 
     const chunk = await analysisService.getChunk('non-existent-id');

@@ -37,7 +37,7 @@ describe('Lazy Update Integration', () => {
 
     // listFunctionsInFile で動的にIDを取得（ハードコードを避ける）
     const functions = await service.listFunctionsInFile(swiftFile);
-    const helloFunc = functions.find(f => f.signature.includes('hello'));
+    const helloFunc = functions.find((f) => f.signature.includes('hello'));
     expect(helloFunc).toBeDefined();
     const chunkId = helloFunc!.id;
 
@@ -59,7 +59,7 @@ describe('Lazy Update Integration', () => {
   it('ファイル削除時にキャッシュがクリアされ、nullが返ること', async () => {
     const tempFile = path.join(TEST_DIR, 'Temp.swift');
     await fs.writeFile(tempFile, 'func temp() {}');
-    
+
     await service.analyzeProject(TEST_DIR);
     const functions = await service.listFunctionsInFile(tempFile);
     const chunkId = functions[0].id;
