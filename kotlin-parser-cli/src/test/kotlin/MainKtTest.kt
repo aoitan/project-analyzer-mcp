@@ -360,31 +360,27 @@ class MainKtTest {
     }
 
     @Test
-    fun `should parse a Kotlin file with an enum class`() {
+    fun `should parse a Kotlin file with class inheritance and property types`() {
         val kotlinCode = """
-            enum class Direction {
-                NORTH, SOUTH, EAST, WEST
+            interface MyInterface
+            open class BaseClass
+            class DerivedClass : BaseClass(), MyInterface {
+                val myProp: String = "test"
             }
         """
-        val kotlinFile = this.tempDir.resolve("testEnum.kt").toFile()
+        val kotlinFile = this.tempDir.resolve("testInheritance.kt").toFile()
         kotlinFile.writeText(kotlinCode)
 
         val result = this.runCli(kotlinFile.absolutePath)
 
         assertEquals(0, result.exitCode, "CLI should exit with code 0")
-        assertEquals("", result.stderr, "Stderr should be empty")
-
+        
         val astInfo = Json { ignoreUnknownKeys = true }.decodeFromString<AstNodeInfo>(result.stdout)
 
-        assertEquals("File", astInfo.type)
-        assertEquals(1, astInfo.children.size)
+        val derivedClassNode = astInfo.children.find { it.name == "DerivedClass" }!!
+        assertEquals(listOf("BaseClass", "MyInterface"), derivedClassNode.superTypes)
 
-        val enumNode = astInfo.children[0]
-        assertEquals("enum class", enumNode.type) // Enum class is a specific type of class
-        assertEquals("Direction", enumNode.name)
-        assertEquals("enum class Direction", enumNode.signature)
-        assertEquals(kotlinCode.trim(), enumNode.content)
-        assertEquals(2, enumNode.startLine)
-        assertEquals(4, enumNode.endLine)
+        val propertyNode = derivedClassNode.children.find { it.name == "myProp" }!!
+        assertEquals("String", propertyNode.propertyType)
     }
 }

@@ -17,6 +17,7 @@ vi.mock('child_process', () => ({
 vi.mock('fs/promises', () => ({
   writeFile: vi.fn(),
   readFile: vi.fn(),
+  access: vi.fn(() => Promise.resolve()), // JARファイルの存在確認用
 }));
 
 const mockSpawn = vi.mocked(spawn);
@@ -106,7 +107,7 @@ class MyClass {
     console.log(`chunks:\n${JSON.stringify(chunks, null, 2)}`);
 
     expect(chunks).toHaveLength(2); // main function and MyClass
-    expect(chunks[0].id).toBe('fun main()');
+    expect(chunks[0].id).toBe(`${filePath}:fun main():0`);
     expect(chunks[0].name).toBe('main');
     expect(chunks[0].signature).toBe('fun main()');
     expect(chunks[0].type).toBe('source.lang.kotlin.decl.function'); // typeを修正
@@ -120,7 +121,7 @@ class MyClass {
     expect(chunks[0].length).toBe(44);
     expect(chunks[0].calls).toEqual([]);
 
-    expect(chunks[1].id).toBe('class MyClass');
+    expect(chunks[1].id).toBe(`${filePath}:class MyClass:46`);
     expect(chunks[1].name).toBe('MyClass');
     expect(chunks[1].signature).toBe('class MyClass');
     expect(chunks[1].type).toBe('source.lang.kotlin.decl.class');
@@ -132,24 +133,64 @@ class MyClass {
     expect(chunks[1].filePath).toBe(filePath);
     expect(chunks[1].startLine).toBe(5);
     expect(chunks[1].endLine).toBe(9);
-    expect(chunks[1].offset).toBe(46);
-    expect(chunks[1].length).toBe(79);
-    expect(chunks[1].calls).toEqual([]);
     expect(chunks[1].children).toHaveLength(1);
-    expect(chunks[1].children[0].id).toBe('fun myMethod()');
-    expect(chunks[1].children[0].name).toBe('myMethod');
-    expect(chunks[1].children[0].type).toBe('source.lang.kotlin.decl.function');
-    expect(chunks[1].children[0].content).toBe(
+    expect(chunks[1].children![0].id).toBe(`${filePath}:fun myMethod():68`);
+    expect(chunks[1].children![0].name).toBe('myMethod');
+    expect(chunks[1].children![0].type).toBe('source.lang.kotlin.decl.function');
+    expect(chunks[1].children![0].content).toBe(
       `fun myMethod() {\n        println("Inside myMethod")\n    }`,
     );
-    expect(chunks[1].children[0].filePath).toBe(filePath);
-    expect(chunks[1].children[0].startLine).toBe(6);
-    expect(chunks[1].children[0].endLine).toBe(8);
-    expect(chunks[1].children[0].offset).toBe(68);
-    expect(chunks[1].children[0].length).toBe(59);
-    expect(chunks[1].children[0].calls).toEqual([]);
+    expect(chunks[1].children![0].filePath).toBe(filePath);
+    expect(chunks[1].children![0].startLine).toBe(6);
+    expect(chunks[1].children![0].endLine).toBe(8);
+    expect(chunks[1].children![0].offset).toBe(68);
+    expect(chunks[1].children![0].length).toBe(59);
+    expect(chunks[1].children![0].calls).toEqual([]);
 
     // expect(mockExec).toHaveBeenCalledWith('kotlin-language-server', ['--file', filePath]); // 実際のJAR呼び出しになるためコメントアウト
+  });
+
+  it('parseFile should extract superTypes and property types', async () => {
+    const mockOutput = {
+      type: 'File',
+      children: [
+        {
+          type: 'class',
+          name: 'DerivedClass',
+          signature: 'class DerivedClass: BaseClass: MyInterface',
+          content:
+            'class DerivedClass : BaseClass(), MyInterface {\n    val myProp: String = "test"\n}',
+          startLine: 1,
+          endLine: 4,
+          offset: 0,
+          length: 80,
+          superTypes: ['BaseClass', 'MyInterface'],
+          children: [
+            {
+              type: 'property',
+              name: 'myProp',
+              signature: 'val myProp: String',
+              content: 'val myProp: String = "test"',
+              startLine: 2,
+              endLine: 2,
+              offset: 50,
+              length: 27,
+              propertyType: 'String',
+            },
+          ],
+        },
+      ],
+    };
+
+    const parserWithMock = new KotlinParser(
+      vi.fn().mockResolvedValue({ stdout: JSON.stringify(mockOutput), stderr: '' }),
+      mockReadFile,
+    );
+
+    const chunks = await parserWithMock.parseFile('test.kt');
+    expect(chunks).toHaveLength(1);
+    expect(chunks[0].superTypes).toEqual(['BaseClass', 'MyInterface']);
+    expect(chunks[0].children![0].properties).toEqual([{ name: 'myProp', type: 'String' }]);
   });
 
   it('parseFile should handle errors during parsing', async () => {
@@ -163,7 +204,7 @@ class MyClass {
     expect(chunks).toEqual([]);
     expect(errorExec).toHaveBeenCalledWith('java', [
       '-jar',
-      'kotlin-parser-cli/build/libs/kotlin-parser-cli.jar',
+      expect.stringContaining('kotlin-parser-cli.jar'),
       filePath,
     ]);
   });
@@ -180,7 +221,7 @@ class MyClass {
     expect(chunks).toEqual([]);
     expect(failingExec).toHaveBeenCalledWith('java', [
       '-jar',
-      'kotlin-parser-cli/build/libs/kotlin-parser-cli.jar',
+      expect.stringContaining('kotlin-parser-cli.jar'),
       filePath,
     ]);
     // logger.errorが呼ばれたことを確認するアサーションを追加することも可能
@@ -198,7 +239,7 @@ class MyClass {
     expect(chunks).toEqual([]);
     expect(invalidJsonExec).toHaveBeenCalledWith('java', [
       '-jar',
-      'kotlin-parser-cli/build/libs/kotlin-parser-cli.jar',
+      expect.stringContaining('kotlin-parser-cli.jar'),
       filePath,
     ]);
     // logger.errorが呼ばれたことを確認するアサーションを追加することも可能

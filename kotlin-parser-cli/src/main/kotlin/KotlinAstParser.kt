@@ -19,7 +19,10 @@ data class AstNodeInfo(
     val endLine: Int,
     val offset: Int,
     val length: Int,
-    val children: List<AstNodeInfo> = emptyList()
+    val children: List<AstNodeInfo> = emptyList(),
+    val superTypes: List<String> = emptyList(),
+    val interfaces: List<String> = emptyList(),
+    val propertyType: String? = null
 )
 
 private fun calculateLineNumber(offset: Int, fileContent: String): Int {
@@ -86,7 +89,8 @@ fun extractDeclarations(element: org.jetbrains.kotlin.psi.KtElement, fileContent
                     startLine = startLine,
                     endLine = endLine,
                     offset = startOffset,
-                    length = content.length
+                    length = content.length,
+                    propertyType = declaration.typeReference?.text
                 ))
             }
             is KtClassOrObject -> {
@@ -113,6 +117,17 @@ fun extractDeclarations(element: org.jetbrains.kotlin.psi.KtElement, fileContent
                     declaration.name + declaration.typeParameterList?.text.orEmpty() + declaration.primaryConstructor?.text.orEmpty() + declaration.superTypeListEntries.joinToString("") { ": " + it.typeReference?.text.orEmpty() }
                 }
 
+                val superTypesList = mutableListOf<String>()
+                val interfacesList = mutableListOf<String>()
+                for (entry in declaration.superTypeListEntries) {
+                    val typeName = entry.typeReference?.text ?: continue
+                    if (entry is org.jetbrains.kotlin.psi.KtSuperTypeCallEntry) {
+                        superTypesList.add(typeName)
+                    } else {
+                        interfacesList.add(typeName)
+                    }
+                }
+
                 val childrenNodes = extractDeclarations(declaration, fileContent)
 
                 nodes.add(AstNodeInfo(
@@ -124,7 +139,9 @@ fun extractDeclarations(element: org.jetbrains.kotlin.psi.KtElement, fileContent
                     endLine = endLine,
                     offset = startOffset,
                     length = content.length,
-                    children = childrenNodes
+                    children = childrenNodes,
+                    superTypes = superTypesList,
+                    interfaces = interfacesList
                 ))
             }
         }

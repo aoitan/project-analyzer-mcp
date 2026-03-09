@@ -9,7 +9,7 @@ const TEST_DIR = path.resolve(__dirname, './lazy_test_project');
 const TEST_CHUNKS_DIR = path.resolve(__dirname, '../../../data/chunks_integration_test');
 
 // config.cacheDir を上書き
-process.env.CACHE_DIR = TEST_CHUNKS_DIR;
+process.env.MCP_CACHE_DIR = TEST_CHUNKS_DIR;
 
 import { AnalysisService } from '../../analysisService.js';
 

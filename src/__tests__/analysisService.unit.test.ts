@@ -75,7 +75,14 @@ describe('AnalysisService (Unit Tests)', () => {
     // 注: mockFs.mkdir などを呼んでいるため、実際にはディスクには書かれないが、
     // CacheManager 内部で fs/promises を使っている場合はモックの影響を受ける。
 
+    // analysisService = new AnalysisService(TEST_CHUNKS_DIR); // これだと config.cacheDir が使われる
     analysisService = new AnalysisService(TEST_CHUNKS_DIR);
+
+    mockFs.stat.mockResolvedValue({ isDirectory: () => true } as any);
+    mockFs.readdir.mockResolvedValue([]);
+    mockFs.mkdir.mockResolvedValue(undefined as any);
+    mockFs.writeFile.mockResolvedValue(undefined as any);
+    mockFs.unlink.mockResolvedValue(undefined as any);
 
     mockParseFile.mockResolvedValue([dummySwiftChunk]);
     mockFs.mkdir.mockResolvedValue(undefined);
@@ -109,5 +116,47 @@ describe('AnalysisService (Unit Tests)', () => {
 
     const chunk = await analysisService.getChunk('non-existent-id');
     expect(chunk).toBeNull();
+  });
+
+  it('getClassArchitecture should return class info and its relations', async () => {
+    const mockClassChunk: CodeChunk = {
+      id: 'class DerivedClass',
+      name: 'DerivedClass',
+      signature: 'class DerivedClass: BaseClass',
+      type: 'source.lang.swift.decl.class',
+      content: 'class DerivedClass: BaseClass { val prop: String = "test" }',
+      filePath: '/test/project/DerivedClass.kt',
+      startLine: 1,
+      endLine: 3,
+      offset: 0,
+      length: 0,
+      calls: [],
+      superTypes: ['BaseClass'],
+      properties: [{ name: 'prop', type: 'String' }],
+    };
+
+    // CacheManager の mock 挙動を制御
+    // ここでは AnalysisService が内部で CacheManager を使っているので、
+    // CacheManager のメソッドをモックするか、fs を通じて挙動を制御する。
+    // 現状 AnalysisService.unit.test.ts は CacheManager をモックしていない。
+
+    // モックの readdir で全てのチャンクIDを返す
+    mockFs.readdir.mockResolvedValue(['class_DerivedClass.json'] as any);
+    mockFs.readFile.mockImplementation((path: any) => {
+      if (path.includes('class_DerivedClass.json')) {
+        return Promise.resolve(JSON.stringify(mockClassChunk));
+      }
+      if (path.includes('DerivedClass.kt')) {
+        return Promise.resolve('class DerivedClass: BaseClass { val prop: String = "test" }');
+      }
+      return Promise.resolve('{}');
+    });
+
+    const result = await analysisService.getClassArchitecture('DerivedClass');
+    expect(result).not.toBeNull();
+    expect(result?.name).toBe('DerivedClass');
+    expect(result?.superTypes).toContain('BaseClass');
+    expect(result?.properties).toHaveLength(1);
+    expect(result?.properties[0].name).toBe('prop');
   });
 });
