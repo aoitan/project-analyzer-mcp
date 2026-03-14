@@ -378,7 +378,8 @@ class MainKtTest {
         val astInfo = Json { ignoreUnknownKeys = true }.decodeFromString<AstNodeInfo>(result.stdout)
 
         val derivedClassNode = astInfo.children.find { it.name == "DerivedClass" }!!
-        assertEquals(listOf("BaseClass", "MyInterface"), derivedClassNode.superTypes)
+        assertEquals(listOf("BaseClass"), derivedClassNode.superTypes)
+        assertEquals(listOf("MyInterface"), derivedClassNode.interfaces)
 
         val propertyNode = derivedClassNode.children.find { it.name == "myProp" }!!
         assertEquals("String", propertyNode.propertyType)
