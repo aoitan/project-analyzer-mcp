@@ -7,6 +7,8 @@ import logger from './utils/logger.js';
 import { CacheManager } from './cache/CacheManager.js';
 import { calculateHash } from './utils/hash.js';
 import { config } from './config.js';
+import { AnalysisAdapter } from './interfaces/AnalysisAdapter.js';
+import { GraphNode } from './types.js';
 
 const MAX_CHUNK_LINES = 50; // ページングを適用する閾値（行数）
 
@@ -102,10 +104,19 @@ function applyPaging(
 export class AnalysisService {
   private chunksDir: string;
   private cache: CacheManager;
+  private adapter?: AnalysisAdapter;
 
-  constructor(chunksDir: string = config.cacheDir) {
+  constructor(chunksDir: string = config.cacheDir, adapter?: AnalysisAdapter) {
     this.chunksDir = chunksDir;
     this.cache = new CacheManager(this.chunksDir);
+    this.adapter = adapter;
+  }
+
+  /**
+   * アダプタを設定する
+   */
+  setAdapter(adapter: AnalysisAdapter): void {
+    this.adapter = adapter;
   }
 
   private toSafeFileName(name: string): string {
@@ -379,5 +390,57 @@ export class AnalysisService {
       }
     }
     return null;
+  }
+
+  async getCallGraph(
+    filePath: string,
+    line: number,
+    column: number,
+    depth: number = 1,
+  ): Promise<{ nodes: GraphNode[]; edges: { from: string; to: string }[] }> {
+    if (!this.adapter) throw new Error('AnalysisAdapter is not configured');
+
+    const nodes = new Map<string, GraphNode>();
+    const edges: { from: string; to: string }[] = [];
+    const visited = new Set<string>();
+
+    const rootSymbol = await this.adapter.getSymbolAtPoint(filePath, line, column);
+    if (!rootSymbol || !rootSymbol.id) {
+      return { nodes: [], edges: [] };
+    }
+
+    const traverse = async (symbol: GraphNode, currentDepth: number) => {
+      if (visited.has(symbol.id) || currentDepth >= depth) return;
+      visited.add(symbol.id);
+      if (!nodes.has(symbol.id)) nodes.set(symbol.id, symbol);
+
+      // 呼び出し元 (Caller) の取得
+      const callers = await this.adapter!.getReferences(symbol.id);
+      for (const caller of callers) {
+        if (!nodes.has(caller.id)) nodes.set(caller.id, caller);
+        edges.push({ from: caller.id, to: symbol.id });
+        await traverse(caller, currentDepth + 1);
+      }
+
+      // 呼び出し先 (Callee) の取得
+      const callees = await this.adapter!.getOutgoingCalls(symbol.id);
+      for (const callee of callees) {
+        if (!nodes.has(callee.id)) nodes.set(callee.id, callee);
+        edges.push({ from: symbol.id, to: callee.id });
+        await traverse(callee, currentDepth + 1);
+      }
+    };
+
+    // ルートシンボルを nodes に追加
+    nodes.set(rootSymbol.id, rootSymbol);
+    await traverse(rootSymbol, 0);
+
+    // 重複エッジの除去
+    const uniqueEdges = Array.from(new Set(edges.map(e => JSON.stringify(e)))).map(s => JSON.parse(s));
+
+    return {
+      nodes: Array.from(nodes.values()),
+      edges: uniqueEdges,
+    };
   }
 }

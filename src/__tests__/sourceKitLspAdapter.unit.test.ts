@@ -29,6 +29,37 @@ vi.mock('../utils/jsonRpcClient.js', () => {
               },
             ]);
           }
+          if (method === 'textDocument/prepareCallHierarchy') {
+            return Promise.resolve([
+              {
+                uri: 'file:///path/to/Def.swift',
+                name: 'DefFunction',
+                kind: 12, // Function
+                range: { start: { line: 15, character: 4 }, end: { line: 15, character: 15 } },
+                selectionRange: {
+                  start: { line: 15, character: 4 },
+                  end: { line: 15, character: 15 },
+                },
+              },
+            ]);
+          }
+          if (method === 'callHierarchy/outgoingCalls') {
+            return Promise.resolve([
+              {
+                to: {
+                  uri: 'file:///path/to/Callee.swift',
+                  name: 'CalleeFunction',
+                  kind: 12,
+                  range: { start: { line: 30, character: 2 }, end: { line: 30, character: 10 } },
+                  selectionRange: {
+                    start: { line: 30, character: 2 },
+                    end: { line: 30, character: 10 },
+                  },
+                },
+                fromRanges: [{ start: { line: 16, character: 5 }, end: { line: 16, character: 10 } }],
+              },
+            ]);
+          }
           return Promise.resolve({});
         }),
         sendNotification: vi.fn(),
@@ -104,5 +135,24 @@ describe('SourceKitLspAdapter', () => {
     // 今回はcatchで空配列を返す実装になっているため
     const refs = await adapter.getReferences('file:///path/to/Def.swift#15#4');
     expect(refs).toHaveLength(0);
+  });
+
+  it('getOutgoingCallsでLSPのCall Hierarchy応答をGraphNodeリストに変換できること', async () => {
+    await adapter.initialize('/test/project');
+    const calls = await adapter.getOutgoingCalls('file:///path/to/Def.swift#15#4');
+
+    expect(calls).toHaveLength(1);
+    expect(calls[0].id).toBe('file:///path/to/Callee.swift#30#2');
+    expect(calls[0].filePath).toBe('/path/to/Callee.swift');
+  });
+
+  it('Call Hierarchyリクエストでエラーが発生した場合にgetOutgoingCallsが空配列を返すこと', async () => {
+    await adapter.initialize('/test/project');
+
+    const rpcSendRequestMock = (adapter as any).rpc.sendRequest as Mock;
+    rpcSendRequestMock.mockRejectedValueOnce(new Error('LSP Call Hierarchy error'));
+
+    const calls = await adapter.getOutgoingCalls('file:///path/to/Def.swift#15#4');
+    expect(calls).toHaveLength(0);
   });
 });

@@ -108,27 +108,31 @@ export class SourceKitLspAdapter implements AnalysisAdapter {
     }
   }
 
-  async getReferences(symbolId: string): Promise<GraphNode[]> {
-    if (!this._initialized) throw new Error('SourceKit-LSP is not initialized');
-
-    // ID形式: "uri#line#col" からパース
-    // URI自体に # が含まれる可能性を考慮し、末尾からパースする
+  private parseSymbolId(symbolId: string): { uri: string; line: number; character: number } | null {
     const match = symbolId.match(/^(.*)#(\d+)#(\d+)$/);
     if (!match) {
       logger.warn(
-        `Invalid symbolId format in getReferences: "${symbolId}". Expected "uri#line#col".`,
+        `Invalid symbolId format: "${symbolId}". Expected "uri#line#col".`,
       );
-      return [];
+      return null;
     }
+    return {
+      uri: match[1],
+      line: parseInt(match[2], 10),
+      character: parseInt(match[3], 10),
+    };
+  }
 
-    const uri = match[1];
-    const line = parseInt(match[2], 10);
-    const character = parseInt(match[3], 10);
+  async getReferences(symbolId: string): Promise<GraphNode[]> {
+    if (!this._initialized) throw new Error('SourceKit-LSP is not initialized');
+
+    const pos = this.parseSymbolId(symbolId);
+    if (!pos) return [];
 
     try {
       const response = await this.rpc.sendRequest('textDocument/references', {
-        textDocument: { uri },
-        position: { line, character },
+        textDocument: { uri: pos.uri },
+        position: { line: pos.line, character: pos.character },
         context: { includeDeclaration: false },
       });
 
@@ -153,8 +157,41 @@ export class SourceKitLspAdapter implements AnalysisAdapter {
   async getOutgoingCalls(symbolId: string): Promise<GraphNode[]> {
     if (!this._initialized) throw new Error('SourceKit-LSP is not initialized');
 
-    // SourceKit-LSP では 'textDocument/prepareCallHierarchy' 以降の独自リクエストが必要
-    // 詳細な実装はPhase 2（コールグラフAPI）で強化する。ここではスタブ。
-    return [];
+    const pos = this.parseSymbolId(symbolId);
+    if (!pos) return [];
+
+    try {
+      // 1. Prepare Call Hierarchy
+      const prepareResponse = await this.rpc.sendRequest('textDocument/prepareCallHierarchy', {
+        textDocument: { uri: pos.uri },
+        position: { line: pos.line, character: pos.character },
+      });
+
+      if (!prepareResponse || !Array.isArray(prepareResponse) || prepareResponse.length === 0) {
+        return [];
+      }
+
+      const item = prepareResponse[0];
+
+      // 2. Get Outgoing Calls
+      const outgoingResponse = await this.rpc.sendRequest('callHierarchy/outgoingCalls', {
+        item,
+      });
+
+      if (!outgoingResponse || !Array.isArray(outgoingResponse)) return [];
+
+      return outgoingResponse.map((call) => {
+        const target = call.to;
+        return {
+          id: `${target.uri}#${target.range.start.line}#${target.range.start.character}`,
+          name: target.name,
+          kind: 'function',
+          filePath: fileURLToPath(target.uri),
+        };
+      });
+    } catch (error) {
+      logger.error(`Failed to get outgoing calls for ${symbolId}: ${error}`);
+      return [];
+    }
   }
 }

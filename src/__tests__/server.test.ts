@@ -92,6 +92,17 @@ vi.mock('../analysisService.js', () => ({
       }
       return [];
     }),
+    getCallGraph: vi.fn(async (filePath: string, line: number, column: number, depth: number) => {
+      if (filePath === '/path/to/file.swift') {
+        return {
+          nodes: [
+            { id: 'node1', name: 'Func1', kind: 'function', filePath: '/path/to/file.swift' },
+          ],
+          edges: [],
+        };
+      }
+      return { nodes: [], edges: [] };
+    }),
   })),
 }));
 
@@ -114,7 +125,25 @@ describe('MCP Server Tools', () => {
   });
 
   it('should have correct number of tool configurations', () => {
-    expect(tools).toHaveLength(6);
+    expect(tools).toHaveLength(7);
+  });
+
+  it('should have get_call_graph tool configuration', () => {
+    const tool = tools.find((t) => t.name === 'get_call_graph');
+    expect(tool).toBeDefined();
+    expect(tool?.config.title).toBe('Get Call Graph');
+  });
+
+  it('get_call_graph callback should return call graph data', async () => {
+    const tool = tools.find((t) => t.name === 'get_call_graph');
+    const result = await tool?.callback({
+      filePath: '/path/to/file.swift',
+      line: 10,
+      column: 5,
+      depth: 1,
+    });
+
+    expect(result.content[0].text).toContain('Func1');
   });
 
   it('should have find_file tool configuration', () => {
