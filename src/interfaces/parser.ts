@@ -14,6 +14,9 @@ export interface CodeChunk {
   length: number; // コードのバイト長（SourceKittenから取得）
   calls: string[]; // このチャンクが呼び出していると推測される関数/メソッド名
   children?: any[]; // 子要素（クラス内のメソッドなど）
+  superTypes?: string[]; // 親クラス
+  interfaces?: string[]; // 実装プロトコル
+  properties?: { name: string; type: string }[]; // プロパティ/フィールド
   // ページング関連のメタデータ
   isPartial?: boolean; // このチャンクが完全なコードチャンクの一部である場合に true
   totalLines?: number; // 元の巨大関数の総行数

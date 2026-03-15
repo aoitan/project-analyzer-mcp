@@ -4,30 +4,33 @@
 
 ## 1. Continue
 
-ContinueでMCPサーバーを利用するには、`~/.continue/mcpServers/mcp-code-analysis-server.yaml` に以下の設定を追加します。
+ContinueでMCPサーバーを利用するには、`~/.continue/config.json` の `mcpServers` セクションに以下の設定を追加します。
 
-```yaml
-name: mcp-code-analysis-server
-version: 0.0.1
-schema: v1
-mcpServers:
-  - name: Code Analysis Server
-    command: npm
-    args:
-      - start
-    env: {}
+```json
+{
+  "mcpServers": [
+    {
+      "name": "Code Analysis Server",
+      "command": "npx",
+      "args": ["-y", "mcp-code-analysis-server"],
+      "env": {
+        "MCP_CACHE_DIR": "/path/to/your/custom/cache"
+      }
+    }
+  ]
+}
 ```
 
-## 2. Claude Code
+## 2. Claude Desktop
 
-Claude CodeでMCPサーバーを利用するには、`<PROJECT_ROOT>/.mcp.json` に以下の設定を追加します。
+Claude DesktopでMCPサーバーを利用するには、設定ファイル（Macの場合は `~/Library/Application Support/Claude/claude_desktop_config.json`）に以下の設定を追加します。
 
 ```json
 {
   "mcpServers": {
     "mcp-code-analysis-server": {
-      "command": "npm",
-      "args": ["start"],
+      "command": "npx",
+      "args": ["-y", "mcp-code-analysis-server"],
       "env": {}
     }
   }
@@ -40,11 +43,10 @@ gemini-cliでMCPサーバーを利用するには、設定ファイル（例: `~
 
 ```json
 {
-    :
   "mcpServers": {
     "mcp-code-analysis-server": {
-      "command": "npm",
-      "args": [ "start" ],
+      "command": "npx",
+      "args": ["-y", "mcp-code-analysis-server"],
       "env": {}
     }
   }

@@ -800,26 +800,65 @@ func dummyFunction2() {
 
     expect(parser['exec']).toHaveBeenCalledWith('sourcekitten', ['structure', '--file', filePath]);
     expect(chunks).toHaveLength(3);
-    expect(chunks[0].id).toBe('func dummyFunction1(param:) -> Int');
+    expect(chunks[0].id).toBe(`${filePath}:func dummyFunction1(param:) -> Int:0`);
     expect(chunks[0].signature).toBe('func dummyFunction1(param:) -> Int');
     expect(chunks[0].content).toBe(expectedDummyFunction1Content);
     expect(chunks[0].startLine).toBe(1);
     expect(chunks[0].endLine).toBe(3);
 
     // largeFunction のテスト
-    expect(chunks[1].id).toBe('func largeFunction(input:) -> String');
+    expect(chunks[1].id).toBe(`${filePath}:func largeFunction(input:) -> String:517`);
     expect(chunks[1].signature).toBe('func largeFunction(input:) -> String');
     expect(chunks[1].content).toBe(expectedLargeFunctionContent);
     expect(chunks[1].startLine).toBe(12);
     expect(chunks[1].endLine).toBe(79);
 
-    expect(chunks[2].id).toBe('func dummyFunction2()');
+    expect(chunks[2].id).toBe(`${filePath}:func dummyFunction2():2403`);
     expect(chunks[2].signature).toBe('func dummyFunction2()');
     expect(chunks[2].content).toBe(expectedDummyFunction2Content);
     expect(chunks[2].startLine).toBe(83);
     expect(chunks[2].endLine).toBe(85);
 
     console.log('[Test] parseFile success test: End');
+  });
+
+  it('parseFile should extract superTypes and properties for Swift classes', async () => {
+    const mockOutput = {
+      'key.substructure': [
+        {
+          'key.kind': 'source.lang.swift.decl.class',
+          'key.name': 'DerivedClass',
+          'key.offset': 0,
+          'key.length': 100,
+          'key.inheritedtypes': [{ 'key.name': 'BaseClass' }, { 'key.name': 'SomeProtocol' }],
+          'key.substructure': [
+            {
+              'key.kind': 'source.lang.swift.decl.var.instance',
+              'key.name': 'myProp',
+              'key.typename': 'String',
+              'key.offset': 50,
+              'key.length': 20,
+            },
+          ],
+        },
+      ],
+    };
+
+    const parserWithMock = new SwiftParser(
+      vi.fn().mockResolvedValue({ stdout: JSON.stringify(mockOutput), stderr: '' }),
+      mockReadFile,
+    );
+
+    mockReadFile.mockResolvedValue(
+      Buffer.from('class DerivedClass: BaseClass, SomeProtocol { var myProp: String }'),
+    );
+
+    const chunks = await parserWithMock.parseFile('test.swift');
+    const classChunk = chunks.find((c) => c.name === 'DerivedClass')!;
+
+    expect(classChunk.superTypes).toContain('BaseClass');
+    expect(classChunk.interfaces).toContain('SomeProtocol');
+    expect(classChunk.properties).toEqual([{ name: 'myProp', type: 'String' }]);
   });
 
   it('parseFile should return empty array on SourceKitten error', async () => {

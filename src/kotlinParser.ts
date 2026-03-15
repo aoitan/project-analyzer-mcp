@@ -3,7 +3,15 @@
 import { IParser, CodeChunk } from './interfaces/parser.js';
 import { spawn } from 'child_process';
 import * as fsp from 'fs/promises';
+import * as path from 'path';
+import { fileURLToPath } from 'url';
 import logger from './utils/logger.js';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
+// JARファイルのパスを動的に解決（パッケージルートからの相対パス）
+const JAR_PATH = path.resolve(__dirname, '../kotlin-parser-cli/build/libs/kotlin-parser-cli.jar');
 
 type ExecFunction = (
   command: string,
@@ -58,11 +66,16 @@ export class KotlinParser implements IParser {
   async parseFile(filePath: string): Promise<CodeChunk[]> {
     console.log(`parsedFile: start ${filePath}`);
     try {
-      const { stdout } = await this.exec('java', [
-        '-jar',
-        'kotlin-parser-cli/build/libs/kotlin-parser-cli.jar',
-        filePath,
-      ]);
+      // JARファイルの存在確認
+      try {
+        await fsp.access(JAR_PATH);
+      } catch (e) {
+        throw new Error(
+          `Kotlin parser JAR not found at ${JAR_PATH}. Please run 'npm run build-kotlin-parser-cli' to build it.`,
+        );
+      }
+
+      const { stdout } = await this.exec('java', ['-jar', JAR_PATH, filePath]);
       const parsedOutput: any = JSON.parse(stdout);
 
       const fileContentBuffer = await this.readFile(filePath);
@@ -79,7 +92,7 @@ export class KotlinParser implements IParser {
         );
 
         const chunk: CodeChunk = {
-          id: signature,
+          id: `${filePath}:${signature}:${item.offset || 0}`,
           name: item.name,
           signature: signature,
           type: `source.lang.kotlin.decl.${item.type}`,
@@ -91,10 +104,29 @@ export class KotlinParser implements IParser {
           length: item.length || 0,
           calls: item.calls || [],
           children: [], // 初期化
+          superTypes: item.superTypes || [],
+          interfaces: item.interfaces || [],
+          properties: item.propertyType ? [{ name: item.name || '', type: item.propertyType }] : [],
         };
 
         if (item.children && item.children.length > 0) {
           chunk.children = await Promise.all(item.children.map(processNode));
+          // 子要素からプロパティ情報を集約
+          if (
+            chunk.type.includes('class') ||
+            chunk.type.includes('object') ||
+            chunk.type.includes('interface')
+          ) {
+            for (const subItem of item.children) {
+              if (subItem.type === 'property' && subItem.propertyType) {
+                // すでに入っている可能性もあるが、重複を避けて追加
+                const prop = { name: subItem.name || '', type: subItem.propertyType };
+                if (!chunk.properties?.some((p) => p.name === prop.name)) {
+                  chunk.properties?.push(prop);
+                }
+              }
+            }
+          }
         }
         return chunk;
       };

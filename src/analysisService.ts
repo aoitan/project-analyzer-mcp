@@ -118,10 +118,13 @@ export class AnalysisService {
   async analyzeProject(projectPath: string): Promise<void> {
     logger.info(`AnalysisService: Analyzing project: ${projectPath}`);
     // 既存のチャンクファイルを削除して、常に最新の解析結果を保存するようにする
-    await fs.rm(this.chunksDir, { recursive: true, force: true });
+    // ディレクトリごとの再帰削除は危険なため、CacheManager の clearAll (JSONファイルのみ削除) を使用する
+    await this.cache.clearAll();
+    // キャッシュディレクトリの存在を保証する（CacheManager 内部でも行われるが、明示的に）
     await fs.mkdir(this.chunksDir, { recursive: true });
 
     const swiftFiles = await glob('**/*.swift', { cwd: projectPath, absolute: true });
+
     const kotlinFiles = await glob('**/*.kt', { cwd: projectPath, absolute: true });
     const allFiles = [...swiftFiles, ...kotlinFiles];
 
@@ -292,6 +295,75 @@ export class AnalysisService {
       (chunk) => chunk.type.includes('function') && chunk.signature.includes(functionQuery),
     );
     return matchingFunctions.map((chunk) => ({ id: chunk.id, signature: chunk.signature }));
+  }
+
+  async getClassArchitecture(className: string): Promise<{
+    name: string;
+    type: string;
+    signature: string;
+    filePath: string;
+    superTypes?: string[];
+    interfaces?: string[];
+    properties?: { name: string; type: string }[];
+    message?: string;
+  } | null> {
+    logger.info(`AnalysisService: Getting class architecture: ${className}`);
+
+    const findInCache = async () => {
+      const allChunkIds = await this.cache.listAllChunkIds();
+      for (const chunkId of allChunkIds) {
+        const chunk = await this.cache.get(chunkId);
+        if (
+          chunk &&
+          (chunk.type.includes('class') ||
+            chunk.type.includes('struct') ||
+            chunk.type.includes('protocol') ||
+            chunk.type.includes('interface')) &&
+          chunk.name === className
+        ) {
+          return chunk;
+        }
+      }
+      return null;
+    };
+
+    // 1. まずキャッシュから探す
+    let foundChunk = await findInCache();
+
+    // 2. 見つからない、または見つかっても Lazy Update を実行して最新化
+    if (foundChunk) {
+      await this.ensureLatestFileAnalysis(foundChunk.filePath);
+      // 再パース後に再度検索（IDが変わっている可能性があるため）
+      foundChunk = await findInCache();
+    } else {
+      // 全く見つからない場合、全ファイルをチェックして最新化してから再度探す
+      // (新規追加されたクラスに対応するため)
+      const filePaths = await this.cache.getTrackedFiles();
+      for (const filePath of filePaths) {
+        await this.ensureLatestFileAnalysis(filePath);
+      }
+      foundChunk = await findInCache();
+    }
+
+    if (foundChunk) {
+      const message = `クラス \`${className}\` のアーキテクチャ情報です。
+- 親クラス: ${foundChunk.superTypes?.join(', ') || 'なし'}
+- 実装インターフェース/プロトコル: ${foundChunk.interfaces?.join(', ') || 'なし'}
+- プロパティ数: ${foundChunk.properties?.length || 0}`;
+
+      return {
+        name: foundChunk.name,
+        type: foundChunk.type,
+        signature: foundChunk.signature,
+        filePath: foundChunk.filePath,
+        superTypes: foundChunk.superTypes,
+        interfaces: foundChunk.interfaces,
+        properties: foundChunk.properties,
+        message: message,
+      };
+    }
+
+    return null;
   }
 
   async listFunctionsInFile(filePath: string): Promise<{ id: string; signature: string }[]> {

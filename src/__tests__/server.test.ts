@@ -114,7 +114,7 @@ describe('MCP Server Tools', () => {
   });
 
   it('should have correct number of tool configurations', () => {
-    expect(tools).toHaveLength(6);
+    expect(tools).toHaveLength(7);
   });
 
   it('should have find_file tool configuration', () => {
@@ -127,6 +127,14 @@ describe('MCP Server Tools', () => {
     const tool = tools.find((t) => t.name === 'find_function');
     expect(tool).toBeDefined();
     expect(tool?.config.title).toBe('Find Function');
+  });
+
+  it('should have get_class_architecture tool configuration', () => {
+    const tool = tools.find((t) => t.name === 'get_class_architecture');
+    expect(tool).toBeDefined();
+    expect(tool?.config.description).toBe(
+      'Retrieves the architecture (inheritance, properties) of a class.',
+    );
   });
 
   it('find_file callback should return matching files', async () => {

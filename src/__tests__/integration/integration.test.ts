@@ -30,7 +30,7 @@ async function startServer(): Promise<{
   responseMap: Map<string, string>; // Mapに変更
   stderrBuffer: string;
 }> {
-  const serverProcess = spawn('node', [SERVER_PATH], {
+  const serverProcess = spawn('node', [SERVER_PATH, '--cache-dir', CHUNKS_DIR], {
     stdio: ['pipe', 'pipe', 'pipe'], // stdin, stdout, stderr をパイプで接続
   });
 
