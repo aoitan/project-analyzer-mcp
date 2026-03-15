@@ -106,9 +106,7 @@ export class KotlinParser implements IParser {
           children: [], // 初期化
           superTypes: item.superTypes || [],
           interfaces: item.interfaces || [],
-          properties: item.propertyType
-            ? [{ name: item.name || '', type: item.propertyType }]
-            : [],
+          properties: item.propertyType ? [{ name: item.name || '', type: item.propertyType }] : [],
         };
 
         if (item.children && item.children.length > 0) {

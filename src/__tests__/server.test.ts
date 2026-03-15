@@ -132,7 +132,9 @@ describe('MCP Server Tools', () => {
   it('should have get_class_architecture tool configuration', () => {
     const tool = tools.find((t) => t.name === 'get_class_architecture');
     expect(tool).toBeDefined();
-    expect(tool?.config.description).toBe('Retrieves the architecture (inheritance, properties) of a class.');
+    expect(tool?.config.description).toBe(
+      'Retrieves the architecture (inheritance, properties) of a class.',
+    );
   });
 
   it('find_file callback should return matching files', async () => {
