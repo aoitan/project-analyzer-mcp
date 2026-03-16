@@ -2,6 +2,18 @@ import { createMcpServer } from '../server.js';
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { vi } from 'vitest';
 import { AnalysisService } from '../analysisService.js'; // AnalysisService をインポート
+import { AnalysisAdapter } from '../interfaces/AnalysisAdapter.js';
+
+const mockAdapter: AnalysisAdapter = {
+  initialized: false,
+  initialize: vi.fn(async () => {
+    (mockAdapter as any).initialized = true;
+  }),
+  shutdown: vi.fn(),
+  getSymbolAtPoint: vi.fn(),
+  getReferences: vi.fn(),
+  getOutgoingCalls: vi.fn(),
+};
 
 // McpServer の registerTool メソッドの呼び出しを記録するためのモック
 const mockRegisteredTools: any[] = [];
@@ -24,6 +36,7 @@ vi.mock('@modelcontextprotocol/sdk/server/mcp.js', () => ({
 // AnalysisService をモック
 vi.mock('../analysisService.js', () => ({
   AnalysisService: vi.fn().mockImplementation(() => ({
+    setAdapter: vi.fn(),
     analyzeProject: vi.fn(async (projectPath: string) => {
       // analyzeProject が呼ばれたときに、ダミーのチャンクを保存したかのように振る舞う
       // 実際にはファイルシステム操作は行わない
@@ -92,6 +105,30 @@ vi.mock('../analysisService.js', () => ({
       }
       return [];
     }),
+    getClassArchitecture: vi.fn(async (className: string) => {
+      if (className === 'MyClass') {
+        return {
+          name: 'MyClass',
+          filePath: '/path/to/MyClass.swift',
+          superTypes: [],
+          interfaces: [],
+          properties: [],
+          message: 'MyClass のアーキテクチャ情報です。',
+        };
+      }
+      return null;
+    }),
+    getCallGraph: vi.fn(async (filePath: string, line: number, column: number, depth: number) => {
+      if (filePath === '/path/to/file.swift') {
+        return {
+          nodes: [
+            { id: 'node1', name: 'Func1', kind: 'function', filePath: '/path/to/file.swift' },
+          ],
+          edges: [],
+        };
+      }
+      return { nodes: [], edges: [] };
+    }),
   })),
 }));
 
@@ -107,14 +144,47 @@ describe('MCP Server Tools', () => {
     // 各テストの前にモックの状態をクリア
     mockRegisteredTools.length = 0; // 配列をクリア
     mockRegisterTool.mockClear();
+    vi.clearAllMocks();
+    (mockAdapter as any).initialized = false;
 
-    server = createMcpServer();
+    server = createMcpServer(undefined, mockAdapter);
     // McpServer の getTools メソッドは公開されていないため、モックされたものにアクセスします。
     tools = (server as any).getTools();
   });
 
   it('should have correct number of tool configurations', () => {
-    expect(tools).toHaveLength(7);
+    expect(tools).toHaveLength(8);
+  });
+
+  it('should have get_class_architecture tool configuration', () => {
+    const tool = tools.find((t) => t.name === 'get_class_architecture');
+    expect(tool).toBeDefined();
+    expect(tool?.config.title).toBe('Get Class Architecture');
+  });
+
+  it('get_class_architecture callback should return class architecture data', async () => {
+    const tool = tools.find((t) => t.name === 'get_class_architecture');
+    const result = await tool?.callback({ className: 'MyClass' });
+
+    expect(result.content[0].text).toContain('MyClass のアーキテクチャ情報です。');
+  });
+
+  it('should have get_call_graph tool configuration', () => {
+    const tool = tools.find((t) => t.name === 'get_call_graph');
+    expect(tool).toBeDefined();
+    expect(tool?.config.title).toBe('Get Call Graph');
+  });
+
+  it('get_call_graph callback should return call graph data', async () => {
+    const tool = tools.find((t) => t.name === 'get_call_graph');
+    const result = await tool?.callback({
+      filePath: '/path/to/file.swift',
+      line: 10,
+      column: 5,
+      depth: 1,
+    });
+
+    expect(result.content[0].text).toContain('Func1');
   });
 
   it('should have find_file tool configuration', () => {

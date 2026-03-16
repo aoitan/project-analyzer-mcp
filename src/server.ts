@@ -1,15 +1,22 @@
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { AnalysisService } from './analysisService.js';
+import { SourceKitLspAdapter } from './adapters/sourceKitLspAdapter.js';
 import { z } from 'zod';
+import logger from './utils/logger.js';
+
+import { AnalysisAdapter } from './interfaces/AnalysisAdapter.js';
 
 // Define tool configurations
-export function createMcpServer(cacheDir?: string) {
+export function createMcpServer(cacheDir?: string, adapterOverride?: AnalysisAdapter) {
   const server = new McpServer({
     name: 'mcp-code-analysis-server',
     version: '1.0.0',
   });
 
-  const analysisService = new AnalysisService(cacheDir);
+  const adapter = adapterOverride || new SourceKitLspAdapter();
+  const analysisService = new AnalysisService(cacheDir, adapter);
+
+  let currentLspProjectPath: string | null = null;
 
   server.registerTool(
     'analyze_project',
@@ -21,24 +28,48 @@ export function createMcpServer(cacheDir?: string) {
       },
     },
     async ({ projectPath }) => {
-      await analysisService.analyzeProject(projectPath);
-      const responseContent = {
-        description: `プロジェクトの解析が完了しました。${projectPath} にあるファイルが解析され、コードチャンクが抽出されました。`,
-        suggested_actions: [
-          `list_functions_in_file: 特定のファイルに含まれる関数の一覧を取得する`,
-          `find_file: 特定のパターンに一致するファイルを探す`,
-          `get_chunk: 特定のチャンクIDのコードを取得する`,
-        ],
-        follow_up_questions: [
-          `どのファイルの関数リストを見たいですか?`,
-          `特定のファイルを探しますか?`,
-          `特定のチャンクIDのコードを見たいですか?`,
-        ],
-        data: {
-          projectPath: projectPath,
-        },
-      };
-      return { content: [{ type: 'text', text: JSON.stringify(responseContent, null, 2) }] };
+      try {
+        await analysisService.analyzeProject(projectPath);
+
+        // プロジェクトパスが変更された場合はLSPを再初期化する
+        if (adapter.initialized && currentLspProjectPath !== projectPath) {
+          logger.info(`Shutting down LSP adapter for previous project...`);
+          await adapter.shutdown();
+        }
+        if (!adapter.initialized) {
+          logger.info(`Initializing LSP adapter for project: ${projectPath}`);
+          await adapter.initialize(projectPath);
+          currentLspProjectPath = projectPath;
+        }
+
+        const responseContent = {
+          description: `プロジェクトの解析が完了しました。${projectPath} にあるファイルが解析され、コードチャンクが抽出されました。`,
+          suggested_actions: [
+            `list_functions_in_file: 特定のファイルに含まれる関数の一覧を取得する`,
+            `find_file: 特定のパターンに一致するファイルを探す`,
+            `get_chunk: 特定のチャンクIDのコードを取得する`,
+          ],
+          follow_up_questions: [
+            `どのファイルの関数リストを見たいですか?`,
+            `特定のファイルを探しますか?`,
+            `特定のチャンクIDのコードを見たいですか?`,
+          ],
+          data: {
+            projectPath: projectPath,
+          },
+        };
+        return { content: [{ type: 'text', text: JSON.stringify(responseContent, null, 2) }] };
+      } catch (error) {
+        return {
+          content: [
+            {
+              type: 'text',
+              text: `Failed to analyze project: ${error instanceof Error ? error.message : String(error)}`,
+            },
+          ],
+          isError: true,
+        };
+      }
     },
   );
   server.registerTool(
@@ -265,6 +296,46 @@ export function createMcpServer(cacheDir?: string) {
       } else {
         return {
           content: [{ type: 'text', text: 'Class not found.' }],
+          isError: true,
+        };
+      }
+    },
+  );
+
+  server.registerTool(
+    'get_call_graph',
+    {
+      title: 'Get Call Graph',
+      description: 'Returns the call graph (callers and callees) for a specific symbol.',
+      inputSchema: {
+        filePath: z.string().describe('The absolute path to the source file.'),
+        line: z.number().describe('The 1-indexed line number of the symbol.'),
+        column: z.number().describe('The 1-indexed column number of the symbol.'),
+        depth: z
+          .number()
+          .optional()
+          .default(1)
+          .describe('The depth of the graph to traverse (default: 1).'),
+      },
+    },
+    async ({ filePath, line, column, depth }) => {
+      try {
+        const graph = await analysisService.getCallGraph(filePath, line, column, depth);
+        const responseContent = {
+          description: `${filePath}:${line}:${column} のコールグラフ（深度 ${depth}）です。`,
+          suggested_actions: [`get_chunk: 取得したノードの具体的なコードを確認する`],
+          follow_up_questions: [`特定のノードのより深い依存関係を調べますか?`],
+          data: graph,
+        };
+        return { content: [{ type: 'text', text: JSON.stringify(responseContent, null, 2) }] };
+      } catch (error) {
+        return {
+          content: [
+            {
+              type: 'text',
+              text: `Error: ${error instanceof Error ? error.message : String(error)}`,
+            },
+          ],
           isError: true,
         };
       }
