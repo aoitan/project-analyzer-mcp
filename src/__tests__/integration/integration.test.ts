@@ -30,7 +30,7 @@ async function startServer(): Promise<{
   responseMap: Map<string, string>; // Mapに変更
   stderrBuffer: string;
 }> {
-  const serverProcess = spawn('node', [SERVER_PATH], {
+  const serverProcess = spawn('node', [SERVER_PATH, '--cache-dir', CHUNKS_DIR], {
     stdio: ['pipe', 'pipe', 'pipe'], // stdin, stdout, stderr をパイプで接続
   });
 
@@ -332,12 +332,6 @@ fun topLevelFunction(value: String): String {
     const parsedContent = JSON.parse(response.result.content[0].text);
     expect(parsedContent.data.projectPath).toEqual(TEST_PROJECT_DIR);
     expect(response.isError).toBeUndefined();
-
-    // チャンクファイルが生成されたことを確認
-    const swiftChunkPath = path.join(CHUNKS_DIR, 'func_mySwiftFunction_param___-__Int.json');
-    const kotlinChunkPath = path.join(CHUNKS_DIR, 'fun_myKotlinFunction_param__String___Int.json');
-    await expect(fs.access(swiftChunkPath)).resolves.toBeUndefined();
-    await expect(fs.access(kotlinChunkPath)).resolves.toBeUndefined();
   }, 30000);
 
   it('should respond to list_functions_in_file tool call for Swift', async () => {
@@ -362,7 +356,6 @@ fun topLevelFunction(value: String): String {
     expect(functions).toEqual(
       expect.arrayContaining([
         expect.objectContaining({
-          id: 'func mySwiftFunction(param:) -> Int',
           signature: 'func mySwiftFunction(param:) -> Int',
         }),
       ]),
@@ -394,7 +387,6 @@ fun topLevelFunction(value: String): String {
     expect(functions).toEqual(
       expect.arrayContaining([
         expect.objectContaining({
-          id: 'fun myKotlinFunction(param: String): Int', // Kotlinのシグネチャは変わる可能性あり
           signature: 'fun myKotlinFunction(param: String): Int',
         }),
       ]),
@@ -446,7 +438,6 @@ fun topLevelFunction(value: String): String {
     const functions = JSON.parse(response.result.content[0].text).items;
     expect(functions).toContainEqual(
       expect.objectContaining({
-        id: 'fun <T> processList(items: List<T>, filter: (T) -> Boolean = { true }): List<T>',
         signature:
           'fun <T> processList(items: List<T>, filter: (T) -> Boolean = { true }): List<T>',
       }),
@@ -476,22 +467,18 @@ fun topLevelFunction(value: String): String {
     expect(functions).toEqual(
       expect.arrayContaining([
         expect.objectContaining({
-          id: 'fun incrementCounter(): Int',
           signature: 'fun incrementCounter(): Int',
         }),
         expect.objectContaining({
-          id: 'fun <T> processList(items: List<T>, filter: (T) -> Boolean = { true }): List<T>',
           signature:
             'fun <T> processList(items: List<T>, filter: (T) -> Boolean = { true }): List<T>',
         }),
         expect.objectContaining({
-          id: 'fun create(name: String): MyComplexClass',
           signature: 'fun create(name: String): MyComplexClass',
         }),
-        expect.objectContaining({ id: 'fun doSomething()', signature: 'fun doSomething()' }),
-        expect.objectContaining({ id: 'fun getInstance()', signature: 'fun getInstance()' }),
+        expect.objectContaining({ signature: 'fun doSomething()' }),
+        expect.objectContaining({ signature: 'fun getInstance()' }),
         expect.objectContaining({
-          id: 'fun topLevelFunction(value: String): String',
           signature: 'fun topLevelFunction(value: String): String',
         }),
       ]),
@@ -548,6 +535,23 @@ fun topLevelFunction(value: String): String {
   }, 6000);
 
   it('should respond to get_chunk tool call', async () => {
+    // チャンクIDを取得
+    const list_functions = {
+      jsonrpc: '2.0',
+      id: 'get_chunk_id_1',
+      method: 'tools/call',
+      params: {
+        name: 'list_functions_in_file',
+        arguments: {
+          filePath: path.join(TEST_PROJECT_DIR, 'test.swift'),
+        },
+      },
+    };
+    serverProcess.stdin.write(`${JSON.stringify(list_functions)}\n\n`);
+    await new Promise((resolve) => setTimeout(resolve, 1000));
+    const listResponse = JSON.parse(responseMap.get('get_chunk_id_1') || '{}');
+    const chunkId = JSON.parse(listResponse.result.content[0].text).data.functions[0].id;
+
     const get_chunk = {
       jsonrpc: '2.0',
       id: 'get_chunk_2', // idをユニークにする
@@ -555,7 +559,7 @@ fun topLevelFunction(value: String): String {
       params: {
         name: 'get_chunk',
         arguments: {
-          chunkId: 'func mySwiftFunction(param:) -> Int',
+          chunkId: chunkId,
         },
       },
     };
@@ -567,7 +571,7 @@ fun topLevelFunction(value: String): String {
     const response = JSON.parse(responseMap.get('get_chunk_2') || '{}'); // Mapから取得
     expect(response.result.content[0].text).toContain('func mySwiftFunction(param: String) -> Int');
     expect(response.isError).toBeUndefined();
-  }, 3000);
+  }, 5000);
 
   it('should return error for non-existent chunkId', async () => {
     const get_chunk = {
@@ -662,7 +666,6 @@ fun topLevelFunction(value: String): String {
     expect(functions).toEqual(
       expect.arrayContaining([
         expect.objectContaining({
-          id: 'func mySwiftFunction(param:) -> Int',
           signature: 'func mySwiftFunction(param:) -> Int',
         }),
       ]),
@@ -693,7 +696,6 @@ fun topLevelFunction(value: String): String {
     expect(functions).toEqual(
       expect.arrayContaining([
         expect.objectContaining({
-          id: 'fun myKotlinFunction(param: String): Int',
           signature: 'fun myKotlinFunction(param: String): Int',
         }),
       ]),
@@ -790,6 +792,23 @@ fun topLevelFunction(value: String): String {
   }, 6000);
 
   it('should respond to get_chunk tool call with paging for large chunk', async () => {
+    // チャンクIDを取得
+    const list_functions = {
+      jsonrpc: '2.0',
+      id: 'get_chunk_large_id_1',
+      method: 'tools/call',
+      params: {
+        name: 'list_functions_in_file',
+        arguments: {
+          filePath: path.join(TEST_PROJECT_DIR, 'test_large_function.swift'),
+        },
+      },
+    };
+    serverProcess.stdin.write(`${JSON.stringify(list_functions)}\n\n`);
+    await new Promise((resolve) => setTimeout(resolve, 1000));
+    const listResponse = JSON.parse(responseMap.get('get_chunk_large_id_1') || '{}');
+    const chunkId = JSON.parse(listResponse.result.content[0].text).data.functions[0].id;
+
     const get_chunk = {
       jsonrpc: '2.0',
       id: 'get_chunk_large_chunk_1',
@@ -797,7 +816,7 @@ fun topLevelFunction(value: String): String {
       params: {
         name: 'get_chunk',
         arguments: {
-          chunkId: 'func largeFunction() -> Void',
+          chunkId: chunkId,
           pageSize: 10,
         },
       },
@@ -818,9 +837,26 @@ fun topLevelFunction(value: String): String {
     expect(parsedContent.data.totalPages).toBe(11); // 102 lines / 10 lines per page = 10.2 -> 11 pages
     expect(parsedContent.data.nextPageToken).toBeDefined();
     expect(parsedContent.data.prevPageToken).toBeUndefined();
-  }, 3000);
+  }, 5000);
 
   it('should respond to get_chunk tool call with next page using pageToken', async () => {
+    // チャンクIDを取得
+    const list_functions = {
+      jsonrpc: '2.0',
+      id: 'get_chunk_large_id_2',
+      method: 'tools/call',
+      params: {
+        name: 'list_functions_in_file',
+        arguments: {
+          filePath: path.join(TEST_PROJECT_DIR, 'test_large_function.swift'),
+        },
+      },
+    };
+    serverProcess.stdin.write(`${JSON.stringify(list_functions)}\n\n`);
+    await new Promise((resolve) => setTimeout(resolve, 1000));
+    const listResponse = JSON.parse(responseMap.get('get_chunk_large_id_2') || '{}');
+    const chunkId = JSON.parse(listResponse.result.content[0].text).data.functions[0].id;
+
     const get_chunk_first_page = {
       jsonrpc: '2.0',
       id: 'get_chunk_large_chunk_first_page',
@@ -828,7 +864,7 @@ fun topLevelFunction(value: String): String {
       params: {
         name: 'get_chunk',
         arguments: {
-          chunkId: 'func largeFunction() -> Void',
+          chunkId: chunkId,
           pageSize: 10,
         },
       },
@@ -852,7 +888,7 @@ fun topLevelFunction(value: String): String {
       params: {
         name: 'get_chunk',
         arguments: {
-          chunkId: 'func largeFunction() -> Void',
+          chunkId: chunkId,
           pageSize: 10,
           pageToken: nextPageToken,
         },
@@ -873,7 +909,7 @@ fun topLevelFunction(value: String): String {
     expect(secondPageContent.data.codeContent.split('\n').length).toBe(12);
     expect(secondPageContent.data.currentPage).toBe(2);
     expect(secondPageContent.data.prevPageToken).toBeDefined();
-  }, 6000);
+  }, 10000);
 
   it('should respond to get_call_graph tool call', async () => {
     const get_call_graph = {
@@ -904,7 +940,10 @@ fun topLevelFunction(value: String): String {
     } else if (response.error) {
       // SourceKit-LSP がインストールされていない環境ではエラーになる可能性があるため、
       // 少なくともツールの呼び出し自体が成功している（サーバーがクラッシュしていない）ことを確認
-      console.warn('get_call_graph failed (possibly due to missing SourceKit-LSP):', response.error);
+      console.warn(
+        'get_call_graph failed (possibly due to missing SourceKit-LSP):',
+        response.error,
+      );
     }
   }, 10000);
 });

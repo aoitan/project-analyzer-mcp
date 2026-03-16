@@ -56,7 +56,9 @@ vi.mock('../utils/jsonRpcClient.js', () => {
                     end: { line: 30, character: 10 },
                   },
                 },
-                fromRanges: [{ start: { line: 16, character: 5 }, end: { line: 16, character: 10 } }],
+                fromRanges: [
+                  { start: { line: 16, character: 5 }, end: { line: 16, character: 10 } },
+                ],
               },
             ]);
           }

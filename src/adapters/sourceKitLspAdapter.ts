@@ -111,9 +111,7 @@ export class SourceKitLspAdapter implements AnalysisAdapter {
   private parseSymbolId(symbolId: string): { uri: string; line: number; character: number } | null {
     const match = symbolId.match(/^(.*)#(\d+)#(\d+)$/);
     if (!match) {
-      logger.warn(
-        `Invalid symbolId format: "${symbolId}". Expected "uri#line#col".`,
-      );
+      logger.warn(`Invalid symbolId format: "${symbolId}". Expected "uri#line#col".`);
       return null;
     }
     return {

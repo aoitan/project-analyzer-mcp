@@ -1,18 +1,28 @@
 {
-  "name": "toy",
+  "name": "mcp-code-analysis-server",
   "version": "1.0.0",
-  "main": "jest.setup.js",
+  "main": "dist/index.js",
   "type": "module",
+  "bin": {
+    "mcp-code-analysis-server": "./dist/index.js"
+  },
+  "files": [
+    "dist",
+    "kotlin-parser-cli/build/libs/*.jar",
+    "scripts",
+    "doc",
+    "README.md"
+  ],
   "directories": {
     "doc": "doc"
   },
   "scripts": {
     "test": "npm run build && npm run format && npm run test:unit",
     "test:unit": "vitest run --exclude \"src/__tests__/integration/**\"",
-    "test:integration": "npm run build && vitest run src/__tests__/integration/integration.test.ts",
+    "test:integration": "npm run build && npm run build-kotlin-parser-cli && vitest run src/__tests__/integration/integration.test.ts",
     "test:all": "npm run build && npm run format && vitest run && cd kotlin-parser-cli && ./gradlew test",
     "start": "npm run build && node dist/index.js",
-    "build": "tsc",
+    "build": "esbuild src/index.ts --bundle --platform=node --format=esm --outfile=dist/index.js --banner:js=\"#!/usr/bin/env node\" --external:@modelcontextprotocol/sdk --external:pino --external:pino-pretty --external:glob",
     "typecheck": "tsc --noEmit",
     "format": "prettier --write \"**/*.{ts,tsx,js,jsx,json,md}\"",
     "render-diagrams": "java -jar tools/plantuml/plantuml.jar -tsvg doc/diagrams/puml/*.puml -o doc/diagrams/svg/",
@@ -26,17 +36,17 @@
   "description": "",
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.13.2",
-    "@types/pino": "^7.0.4",
-    "esbuild": "0.25.0",
+    "glob": "^11.0.3",
     "pino": "^9.7.0",
-    "pino-pretty": "^13.0.0",
-    "typescript": "^5.8.3"
+    "pino-pretty": "^13.0.0"
   },
   "devDependencies": {
     "@types/node": "^24.0.7",
+    "@types/pino": "^7.0.4",
     "@vitest/coverage-v8": "^3.2.4",
-    "glob": "^11.0.3",
+    "esbuild": "0.25.0",
     "prettier": "^3.6.2",
+    "typescript": "^5.8.3",
     "vitest": "^3.2.4"
   }
 }

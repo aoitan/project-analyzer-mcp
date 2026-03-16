@@ -26,8 +26,8 @@ export class CacheManager {
 
   constructor(cacheDir: string = config.cacheDir) {
     this.memoryCache = new Map<string, CacheEntry>();
-    this.cacheDir = cacheDir;
-    this.metadataFile = path.join(this.cacheDir, 'metadata.json');
+    this.cacheDir = path.join(cacheDir, 'chunks');
+    this.metadataFile = path.join(cacheDir, 'metadata.json');
   }
 
   /**
@@ -123,6 +123,11 @@ export class CacheManager {
     }
   }
 
+  public async getTrackedFiles(): Promise<string[]> {
+    const metadata = await this.loadMetadata();
+    return Object.keys(metadata);
+  }
+
   // --- メタデータ管理 ---
 
   private async loadMetadata(): Promise<ProjectMetadata> {
@@ -186,6 +191,36 @@ export class CacheManager {
 
       delete metadata[filePath];
       await this.saveMetadata();
+    }
+  }
+
+  /**
+   * 全てのキャッシュファイルを削除する（安全な実装）。
+   */
+  public async clearAll(): Promise<void> {
+    this.memoryCache.clear();
+    this.metadata = {};
+    try {
+      // ディレクトリが存在する場合のみ処理
+      const stats = await fs.stat(this.cacheDir).catch(() => null);
+      if (stats) {
+        const files = await fs.readdir(this.cacheDir);
+        for (const file of files) {
+          if (file.endsWith('.json')) {
+            await fs.unlink(path.join(this.cacheDir, file));
+          }
+        }
+      }
+
+      // メタデータファイルが存在する場合のみ削除
+      const metadataStats = await fs.stat(this.metadataFile).catch(() => null);
+      if (metadataStats) {
+        await fs.unlink(this.metadataFile);
+      }
+    } catch (error: any) {
+      if (error.code !== 'ENOENT') {
+        console.error(`Failed to clear cache directory: ${this.cacheDir}`, error);
+      }
     }
   }
 }

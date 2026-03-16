@@ -54,7 +54,7 @@ describe('CacheManager Metadata', () => {
     await testCacheManager.updateFileMetadata(filePath, 'hash1', [chunkId]);
 
     const safeKey = chunkId.replace(/[^a-zA-Z0-9-_.]/g, '_');
-    const chunkFilePath = path.join(TEST_CACHE_DIR, `${safeKey}.json`);
+    const chunkFilePath = path.join(TEST_CACHE_DIR, 'chunks', `${safeKey}.json`);
     await expect(fs.access(chunkFilePath)).resolves.toBeUndefined();
 
     await testCacheManager.clearCacheForFile(filePath);

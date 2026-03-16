@@ -45,79 +45,60 @@
 
 ### 前提条件
 
-- Node.js (v18以上を推奨)
-- npm
-- Java Development Kit (JDK) v21以上 (Kotlinコード解析のため)
-- Gradle (Kotlin CLIツールのビルドのため)
+- Node.js (v18以上)
+- SourceKitten (Swift解析用、`scripts/install_sourcekitten.sh` でインストール可能)
+- Java 21+ & Gradle (Kotlin解析用)
 
-### インストール
+### クイックスタート (npx)
 
-1.  リポジトリをクローンします。
+リポジトリをクローンせずに、`npx` で直接実行することも可能です。
+
+```bash
+npx mcp-code-analysis-server
+```
+
+※ 初回実行時は、キャッシュディレクトリ `~/.mcp-code-analysis-server/chunks` が作成されます。
+
+### 開発用インストール
+
+1.  リポジトリをクローンし、依存関係をインストールします。
     ```bash
     git clone [リポジトリのURL]
     cd [プロジェクトディレクトリ]
-    ```
-2.  依存関係をインストールします。
-    ```bash
     npm install
     ```
-3.  SourceKittenをインストールします。（Swiftコード解析のため）
+2.  ビルドします。
+    ```bash
+    npm run build
+    ```
+3.  SourceKittenとKotlinパーサーをセットアップします。
     ```bash
     npm run install-sourcekitten
-    ```
-4.  Kotlin AST JSON出力CLIツールをビルドします。（Kotlinコード解析のため）
-    ```bash
     npm run build-kotlin-parser-cli
     ```
 
-## テストの実行
-
-プロジェクトのテストはVitestを使用しています。
-
-```bash
-npm test
-```
-
-統合テストの実行:
-
-```bash
-npm run test:integration
-```
-
-## 図のレンダリング
-
-### 設定方法
-
-1.  **PlantUML JARファイルの配置**:
-    `tools/plantuml/` ディレクトリに `plantuml.jar` ファイルを配置してください。
-    もし存在しない場合は、以下のコマンドでダウンロードできます。
-
-    ```bash
-    mkdir -p tools/plantuml
-    curl -L -o tools/plantuml/plantuml.jar https://github.com/plantuml/plantuml/releases/download/v1.2024.5/plantuml.jar
-    ```
-
-    **注意**: `plantuml.jar` は `.gitignore` に追加されており、Git管理の対象外です。
-
-### 手動でのレンダリング
-
-`npm run render-diagrams` コマンドを実行することで、手動で図をレンダリングすることも可能です。
-
-```bash
-npm run render-diagrams
-```
-
 ## 使用方法
 
-### MCPサーバーの起動とAgentからの利用
-
-MCPサーバーを起動するには、以下のコマンドを実行します。
+### MCPサーバーの起動
 
 ```bash
+# ビルド済みバイナリを起動
 npm start
+
+# または直接実行 (開発時)
+node dist/index.js
 ```
 
-サーバーが起動したら、Continue, Claude Code, gemini-cliなどのAgentからMCPサーバーを利用するための設定例は [MCPサーバー設定ファイル例](doc/mcp_settings.md) を参照してください。
+### キャッシュディレクトリの設定
+
+デフォルトでは `~/.mcp-code-analysis-server/chunks` にキャッシュが保存されますが、以下の方法で変更可能です。
+
+- **環境変数**: `MCP_CACHE_DIR=/path/to/cache npx mcp-code-analysis-server`
+- **コマンドライン引数**: `npx mcp-code-analysis-server --cache-dir /path/to/cache`
+
+### Agentからの利用
+
+Claude Desktop, Continue, Claude Code などの MCP クライアントから利用する設定例は [MCPサーバー設定ファイル例](doc/mcp_settings.md) を参照してください。
 
 ### LLMからのツール利用例
 

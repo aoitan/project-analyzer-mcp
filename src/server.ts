@@ -5,13 +5,13 @@ import { z } from 'zod';
 import logger from './utils/logger.js';
 
 // Define tool configurations
-export function createMcpServer() {
+export function createMcpServer(cacheDir?: string) {
   const server = new McpServer({
     name: 'mcp-code-analysis-server',
     version: '1.0.0',
   });
 
-  const analysisService = new AnalysisService('./data/chunks');
+  const analysisService = new AnalysisService(cacheDir);
   const adapter = new SourceKitLspAdapter();
   analysisService.setAdapter(adapter);
 
@@ -257,6 +257,40 @@ export function createMcpServer() {
     async ({ filePath, functionQuery }) => {
       const functions = await analysisService.findFunctions(filePath, functionQuery);
       return { content: [{ type: 'text', text: JSON.stringify({ items: functions }, null, 2) }] };
+    },
+  );
+
+  server.registerTool(
+    'get_class_architecture',
+    {
+      title: 'Get Class Architecture',
+      description: 'Retrieves the architecture (inheritance, properties) of a class.',
+      inputSchema: {
+        className: z.string().describe('The name of the class to retrieve.'),
+      },
+    },
+    async ({ className }) => {
+      const architecture = await analysisService.getClassArchitecture(className);
+      if (architecture) {
+        const responseContent = {
+          description: architecture.message || `${className} のアーキテクチャ情報です。`,
+          suggested_actions: [
+            `list_functions_in_file: このクラスのメソッド一覧を取得する (filePath: ${architecture.filePath})`,
+            `get_class_architecture: 親クラスの情報を取得する`,
+          ],
+          follow_up_questions: [
+            `このクラスのメソッドを見たいですか?`,
+            `親クラスの情報を調べますか?`,
+          ],
+          data: architecture,
+        };
+        return { content: [{ type: 'text', text: JSON.stringify(responseContent, null, 2) }] };
+      } else {
+        return {
+          content: [{ type: 'text', text: 'Class not found.' }],
+          isError: true,
+        };
+      }
     },
   );
 

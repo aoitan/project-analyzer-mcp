@@ -24,6 +24,7 @@ vi.mock('@modelcontextprotocol/sdk/server/mcp.js', () => ({
 // AnalysisService をモック
 vi.mock('../analysisService.js', () => ({
   AnalysisService: vi.fn().mockImplementation(() => ({
+    setAdapter: vi.fn(),
     analyzeProject: vi.fn(async (projectPath: string) => {
       // analyzeProject が呼ばれたときに、ダミーのチャンクを保存したかのように振る舞う
       // 実際にはファイルシステム操作は行わない
@@ -92,6 +93,19 @@ vi.mock('../analysisService.js', () => ({
       }
       return [];
     }),
+    getClassArchitecture: vi.fn(async (className: string) => {
+      if (className === 'MyClass') {
+        return {
+          name: 'MyClass',
+          filePath: '/path/to/MyClass.swift',
+          superTypes: [],
+          interfaces: [],
+          properties: [],
+          message: 'MyClass のアーキテクチャ情報です。',
+        };
+      }
+      return null;
+    }),
     getCallGraph: vi.fn(async (filePath: string, line: number, column: number, depth: number) => {
       if (filePath === '/path/to/file.swift') {
         return {
@@ -125,7 +139,20 @@ describe('MCP Server Tools', () => {
   });
 
   it('should have correct number of tool configurations', () => {
-    expect(tools).toHaveLength(7);
+    expect(tools).toHaveLength(8);
+  });
+
+  it('should have get_class_architecture tool configuration', () => {
+    const tool = tools.find((t) => t.name === 'get_class_architecture');
+    expect(tool).toBeDefined();
+    expect(tool?.config.title).toBe('Get Class Architecture');
+  });
+
+  it('get_class_architecture callback should return class architecture data', async () => {
+    const tool = tools.find((t) => t.name === 'get_class_architecture');
+    const result = await tool?.callback({ className: 'MyClass' });
+
+    expect(result.content[0].text).toContain('MyClass のアーキテクチャ情報です。');
   });
 
   it('should have get_call_graph tool configuration', () => {
@@ -156,6 +183,14 @@ describe('MCP Server Tools', () => {
     const tool = tools.find((t) => t.name === 'find_function');
     expect(tool).toBeDefined();
     expect(tool?.config.title).toBe('Find Function');
+  });
+
+  it('should have get_class_architecture tool configuration', () => {
+    const tool = tools.find((t) => t.name === 'get_class_architecture');
+    expect(tool).toBeDefined();
+    expect(tool?.config.description).toBe(
+      'Retrieves the architecture (inheritance, properties) of a class.',
+    );
   });
 
   it('find_file callback should return matching files', async () => {
