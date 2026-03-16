@@ -2,6 +2,18 @@ import { createMcpServer } from '../server.js';
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { vi } from 'vitest';
 import { AnalysisService } from '../analysisService.js'; // AnalysisService をインポート
+import { AnalysisAdapter } from '../interfaces/AnalysisAdapter.js';
+
+const mockAdapter: AnalysisAdapter = {
+  initialized: false,
+  initialize: vi.fn(async () => {
+    (mockAdapter as any).initialized = true;
+  }),
+  shutdown: vi.fn(),
+  getSymbolAtPoint: vi.fn(),
+  getReferences: vi.fn(),
+  getOutgoingCalls: vi.fn(),
+};
 
 // McpServer の registerTool メソッドの呼び出しを記録するためのモック
 const mockRegisteredTools: any[] = [];
@@ -132,8 +144,10 @@ describe('MCP Server Tools', () => {
     // 各テストの前にモックの状態をクリア
     mockRegisteredTools.length = 0; // 配列をクリア
     mockRegisterTool.mockClear();
+    vi.clearAllMocks();
+    (mockAdapter as any).initialized = false;
 
-    server = createMcpServer();
+    server = createMcpServer(undefined, mockAdapter);
     // McpServer の getTools メソッドは公開されていないため、モックされたものにアクセスします。
     tools = (server as any).getTools();
   });

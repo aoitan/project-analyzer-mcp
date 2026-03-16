@@ -4,15 +4,17 @@ import { SourceKitLspAdapter } from './adapters/sourceKitLspAdapter.js';
 import { z } from 'zod';
 import logger from './utils/logger.js';
 
+import { AnalysisAdapter } from './interfaces/AnalysisAdapter.js';
+
 // Define tool configurations
-export function createMcpServer(cacheDir?: string) {
+export function createMcpServer(cacheDir?: string, adapterOverride?: AnalysisAdapter) {
   const server = new McpServer({
     name: 'mcp-code-analysis-server',
     version: '1.0.0',
   });
 
   const analysisService = new AnalysisService(cacheDir);
-  const adapter = new SourceKitLspAdapter();
+  const adapter = adapterOverride || new SourceKitLspAdapter();
   analysisService.setAdapter(adapter);
 
   server.registerTool(
