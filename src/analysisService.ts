@@ -8,7 +8,7 @@ import { CacheManager } from './cache/CacheManager.js';
 import { calculateHash } from './utils/hash.js';
 import { config } from './config.js';
 import { AnalysisAdapter } from './interfaces/AnalysisAdapter.js';
-import { GraphNode } from './types.js';
+import { GraphNode, GraphEdge } from './types.js';
 
 const MAX_CHUNK_LINES = 50; // ページングを適用する閾値（行数）
 
@@ -469,11 +469,12 @@ export class AnalysisService {
     line: number,
     column: number,
     depth: number = 1,
-  ): Promise<{ nodes: GraphNode[]; edges: { from: string; to: string }[] }> {
+  ): Promise<{ nodes: GraphNode[]; edges: GraphEdge[] }> {
     if (!this.adapter) throw new Error('AnalysisAdapter is not configured');
 
+    const safeDepth = Math.max(0, Math.min(Math.floor(depth), 5));
     const nodes = new Map<string, GraphNode>();
-    const edges: { from: string; to: string }[] = [];
+    const edges: GraphEdge[] = [];
     const visited = new Set<string>();
 
     const rootSymbol = await this.adapter.getSymbolAtPoint(filePath, line, column);
@@ -482,7 +483,7 @@ export class AnalysisService {
     }
 
     const traverse = async (symbol: GraphNode, currentDepth: number) => {
-      if (visited.has(symbol.id) || currentDepth >= depth) return;
+      if (visited.has(symbol.id) || currentDepth >= safeDepth) return;
       visited.add(symbol.id);
       if (!nodes.has(symbol.id)) nodes.set(symbol.id, symbol);
 
@@ -490,7 +491,7 @@ export class AnalysisService {
       const callers = await this.adapter!.getReferences(symbol.id);
       for (const caller of callers) {
         if (!nodes.has(caller.id)) nodes.set(caller.id, caller);
-        edges.push({ from: caller.id, to: symbol.id });
+        edges.push({ sourceId: caller.id, targetId: symbol.id, relationship: 'calls' });
         await traverse(caller, currentDepth + 1);
       }
 
@@ -498,7 +499,7 @@ export class AnalysisService {
       const callees = await this.adapter!.getOutgoingCalls(symbol.id);
       for (const callee of callees) {
         if (!nodes.has(callee.id)) nodes.set(callee.id, callee);
-        edges.push({ from: symbol.id, to: callee.id });
+        edges.push({ sourceId: symbol.id, targetId: callee.id, relationship: 'calls' });
         await traverse(callee, currentDepth + 1);
       }
     };
@@ -508,13 +509,17 @@ export class AnalysisService {
     await traverse(rootSymbol, 0);
 
     // 重複エッジの除去
-    const uniqueEdges = Array.from(new Set(edges.map((e) => JSON.stringify(e)))).map((s) =>
-      JSON.parse(s),
-    );
+    const uniqueEdgesMap = new Map<string, GraphEdge>();
+    for (const edge of edges) {
+      const key = `${edge.sourceId}\0${edge.targetId}\0${edge.relationship}`;
+      if (!uniqueEdgesMap.has(key)) {
+        uniqueEdgesMap.set(key, edge);
+      }
+    }
 
     return {
       nodes: Array.from(nodes.values()),
-      edges: uniqueEdges,
+      edges: Array.from(uniqueEdgesMap.values()),
     };
   }
 }

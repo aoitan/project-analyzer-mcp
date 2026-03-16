@@ -13,9 +13,10 @@ export function createMcpServer(cacheDir?: string, adapterOverride?: AnalysisAda
     version: '1.0.0',
   });
 
-  const analysisService = new AnalysisService(cacheDir);
   const adapter = adapterOverride || new SourceKitLspAdapter();
-  analysisService.setAdapter(adapter);
+  const analysisService = new AnalysisService(cacheDir, adapter);
+
+  let currentLspProjectPath: string | null = null;
 
   server.registerTool(
     'analyze_project',
@@ -30,10 +31,15 @@ export function createMcpServer(cacheDir?: string, adapterOverride?: AnalysisAda
       try {
         await analysisService.analyzeProject(projectPath);
 
-        // LSPアダプタの初期化
+        // プロジェクトパスが変更された場合はLSPを再初期化する
+        if (adapter.initialized && currentLspProjectPath !== projectPath) {
+          logger.info(`Shutting down LSP adapter for previous project...`);
+          await adapter.shutdown();
+        }
         if (!adapter.initialized) {
           logger.info(`Initializing LSP adapter for project: ${projectPath}`);
           await adapter.initialize(projectPath);
+          currentLspProjectPath = projectPath;
         }
 
         const responseContent = {

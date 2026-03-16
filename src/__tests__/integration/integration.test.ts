@@ -932,6 +932,8 @@ fun topLevelFunction(value: String): String {
     await new Promise((resolve) => setTimeout(resolve, 5000));
 
     const response = JSON.parse(responseMap.get('get_call_graph_1') || '{}');
+    expect(response.result || response.error).toBeDefined();
+
     if (response.result && response.result.content) {
       const parsedContent = JSON.parse(response.result.content[0].text);
       expect(parsedContent.data).toBeDefined();

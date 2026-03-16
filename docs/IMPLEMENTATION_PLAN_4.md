@@ -1,4 +1,4 @@
-# Implementation Plan: Issue #4 - Call Graph API Implementation
+# 実装計画: Issue #4 - コールグラフ API の実装
 
 LLM が関数レベルの依存関係（呼び出し元・呼び出し先）を動的に取得し、処理フローや影響範囲を理解できるようにするための API を実装します。
 

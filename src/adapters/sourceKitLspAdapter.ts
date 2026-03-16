@@ -80,9 +80,35 @@ export class SourceKitLspAdapter implements AnalysisAdapter {
 
     try {
       const uri = pathToFileURL(path.resolve(filePath)).toString();
+      const position = { line: line - 1, character: column - 1 };
+
+      // まず Prepare Call Hierarchy を試して、詳細なシンボル情報（名前、種類）を取得する
+      try {
+        const prepareResponse = await this.rpc.sendRequest('textDocument/prepareCallHierarchy', {
+          textDocument: { uri },
+          position,
+        });
+
+        if (prepareResponse && Array.isArray(prepareResponse) && prepareResponse.length > 0) {
+          const item = prepareResponse[0];
+          return {
+            id: `${item.uri}#${item.range.start.line}#${item.range.start.character}`,
+            name: item.name,
+            kind: this.mapSymbolKind(item.kind),
+            filePath: fileURLToPath(item.uri),
+          };
+        }
+      } catch (e) {
+        // prepareCallHierarchy が未対応または失敗した場合は、フォールバックとして definition を試す
+        logger.debug(
+          `prepareCallHierarchy failed or not supported, falling back to definition: ${e}`,
+        );
+      }
+
+      // フォールバック: textDocument/definition
       const response = await this.rpc.sendRequest('textDocument/definition', {
         textDocument: { uri },
-        position: { line: line - 1, character: column - 1 }, // LSP is 0-indexed
+        position, // LSP is 0-indexed
       });
 
       if (!response || (Array.isArray(response) && response.length === 0)) {
@@ -98,8 +124,8 @@ export class SourceKitLspAdapter implements AnalysisAdapter {
 
       return {
         id: `${targetUri}#${range.start.line}#${range.start.character}`,
-        name: 'ResolvedSymbol', // TODO: 実際の名前を取得するには hover 等が追加で必要になる場合がある
-        kind: 'function', // TODO: LSPのSymbolKind等から適切なマッピングを行う必要がある
+        name: 'ResolvedSymbol',
+        kind: 'function', // definitionからはkindが取得できないためフォールバック
         filePath: fileURLToPath(targetUri),
       };
     } catch (error) {
@@ -121,6 +147,41 @@ export class SourceKitLspAdapter implements AnalysisAdapter {
     };
   }
 
+  private mapSymbolKind(kind?: number): GraphNode['kind'] {
+    switch (kind) {
+      case 1:
+        return 'file';
+      case 2:
+        return 'module';
+      case 3:
+        return 'namespace';
+      case 4:
+        return 'package';
+      case 5:
+        return 'class';
+      case 6:
+        return 'method';
+      case 7:
+        return 'property';
+      case 8:
+        return 'field';
+      case 9:
+        return 'constructor';
+      case 10:
+        return 'enum';
+      case 11:
+        return 'interface';
+      case 12:
+        return 'function';
+      case 13:
+        return 'variable';
+      case 14:
+        return 'constant';
+      default:
+        return 'function'; // fallback
+    }
+  }
+
   async getReferences(symbolId: string): Promise<GraphNode[]> {
     if (!this._initialized) throw new Error('SourceKit-LSP is not initialized');
 
@@ -128,26 +189,36 @@ export class SourceKitLspAdapter implements AnalysisAdapter {
     if (!pos) return [];
 
     try {
-      const response = await this.rpc.sendRequest('textDocument/references', {
+      // 1. Prepare Call Hierarchy
+      const prepareResponse = await this.rpc.sendRequest('textDocument/prepareCallHierarchy', {
         textDocument: { uri: pos.uri },
         position: { line: pos.line, character: pos.character },
-        context: { includeDeclaration: false },
       });
 
-      if (!response || !Array.isArray(response)) return [];
+      if (!prepareResponse || !Array.isArray(prepareResponse) || prepareResponse.length === 0) {
+        return [];
+      }
 
-      return response.map((loc) => {
-        const targetUri = loc.uri || loc.targetUri;
-        const range = loc.range || loc.targetSelectionRange;
+      const item = prepareResponse[0];
+
+      // 2. Get Incoming Calls
+      const incomingResponse = await this.rpc.sendRequest('callHierarchy/incomingCalls', {
+        item,
+      });
+
+      if (!incomingResponse || !Array.isArray(incomingResponse)) return [];
+
+      return incomingResponse.map((call) => {
+        const source = call.from;
         return {
-          id: `${targetUri}#${range.start.line}#${range.start.character}`,
-          name: 'Reference',
-          kind: 'function',
-          filePath: fileURLToPath(targetUri),
+          id: `${source.uri}#${source.range.start.line}#${source.range.start.character}`,
+          name: source.name,
+          kind: this.mapSymbolKind(source.kind),
+          filePath: fileURLToPath(source.uri),
         };
       });
     } catch (error) {
-      logger.error(`Failed to get references for ${symbolId}: ${error}`);
+      logger.error(`Failed to get incoming calls for ${symbolId}: ${error}`);
       return [];
     }
   }
@@ -183,7 +254,7 @@ export class SourceKitLspAdapter implements AnalysisAdapter {
         return {
           id: `${target.uri}#${target.range.start.line}#${target.range.start.character}`,
           name: target.name,
-          kind: 'function',
+          kind: this.mapSymbolKind(target.kind),
           filePath: fileURLToPath(target.uri),
         };
       });

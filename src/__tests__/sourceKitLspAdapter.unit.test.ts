@@ -43,6 +43,25 @@ vi.mock('../utils/jsonRpcClient.js', () => {
               },
             ]);
           }
+          if (method === 'callHierarchy/incomingCalls') {
+            return Promise.resolve([
+              {
+                from: {
+                  uri: 'file:///path/to/Caller.swift',
+                  name: 'CallerFunction',
+                  kind: 12,
+                  range: { start: { line: 20, character: 8 }, end: { line: 20, character: 20 } },
+                  selectionRange: {
+                    start: { line: 20, character: 8 },
+                    end: { line: 20, character: 20 },
+                  },
+                },
+                fromRanges: [
+                  { start: { line: 20, character: 8 }, end: { line: 20, character: 20 } },
+                ],
+              },
+            ]);
+          }
           if (method === 'callHierarchy/outgoingCalls') {
             return Promise.resolve([
               {
@@ -112,14 +131,15 @@ describe('SourceKitLspAdapter', () => {
     await adapter.initialize('/test/project');
 
     const rpcSendRequestMock = (adapter as any).rpc.sendRequest as Mock;
-    rpcSendRequestMock.mockRejectedValueOnce(new Error('LSP definition error'));
+    // prepareCallHierarchy と definition の両方でエラーを発生させる
+    rpcSendRequestMock.mockRejectedValue(new Error('LSP definition error'));
 
     // 今回はcatchでnullを返す実装になっているため
     const symbol = await adapter.getSymbolAtPoint('/path/to/file.swift', 10, 5);
     expect(symbol).toBeNull();
   });
 
-  it('getReferencesでLSPのreferences応答をGraphNodeリストに変換できること', async () => {
+  it('getReferencesでLSPのincomingCalls応答をGraphNodeリストに変換できること', async () => {
     await adapter.initialize('/test/project');
     const refs = await adapter.getReferences('file:///path/to/Def.swift#15#4');
 
@@ -132,7 +152,7 @@ describe('SourceKitLspAdapter', () => {
     await adapter.initialize('/test/project');
 
     const rpcSendRequestMock = (adapter as any).rpc.sendRequest as Mock;
-    rpcSendRequestMock.mockRejectedValueOnce(new Error('LSP references error'));
+    rpcSendRequestMock.mockRejectedValue(new Error('LSP references error'));
 
     // 今回はcatchで空配列を返す実装になっているため
     const refs = await adapter.getReferences('file:///path/to/Def.swift#15#4');
