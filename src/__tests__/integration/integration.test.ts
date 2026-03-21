@@ -2,12 +2,12 @@
 
 import { spawn } from 'child_process';
 import { fileURLToPath } from 'url';
-import path from 'path';
+import * as path from 'path';
 import { expect, describe, it, beforeEach, afterEach, beforeAll, afterAll } from 'vitest';
 import * as fs from 'fs/promises';
 
 // __dirname の代替 (ES Modules対応)
-const __filename = fileURLToPath(import.meta.url);
+const __filename = fileURLToPath((import.meta as any).url);
 const __dirname = path.dirname(__filename);
 
 const SERVER_PATH = path.resolve(__dirname, '../../../dist/index.js');
