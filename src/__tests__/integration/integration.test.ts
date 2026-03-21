@@ -2,7 +2,7 @@
 
 import { spawn } from 'child_process';
 import { fileURLToPath } from 'url';
-import path from 'path';
+import * as path from 'path';
 import { expect, describe, it, beforeEach, afterEach, beforeAll, afterAll } from 'vitest';
 import * as fs from 'fs/promises';
 
