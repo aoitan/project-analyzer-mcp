@@ -76,7 +76,7 @@ jobs:
         run: npm ci
       - name: Install SourceKitten
         run: ./scripts/install_sourcekitten.sh
-      - name: Build Kotlin Parser
-        run: npm run build-kotlin-parser-cli
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       - name: Run full integration tests
         run: npm run test:integration

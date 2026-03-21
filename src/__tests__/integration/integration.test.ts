@@ -7,7 +7,7 @@ import { expect, describe, it, beforeEach, afterEach, beforeAll, afterAll } from
 import * as fs from 'fs/promises';
 
 // __dirname の代替 (ES Modules対応)
-const __filename = fileURLToPath((import.meta as any).url);
+const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 const SERVER_PATH = path.resolve(__dirname, '../../../dist/index.js');
