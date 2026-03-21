@@ -15,16 +15,22 @@ case "$OS" in
         fi
 
         # GitHub APIを使用して最新のダウンロードURLを取得 (GITHUB_TOKENがあれば使用)
-        CURL_OPTS="-s"
+        CURL_OPTS=("-s")
         if [ -n "$GITHUB_TOKEN" ]; then
-            CURL_OPTS="$CURL_OPTS -H \"Authorization: token $GITHUB_TOKEN\""
+            echo "GITHUB_TOKEN が設定されています。認証を使用して API を呼び出します。"
+            CURL_OPTS+=("-H" "Authorization: token $GITHUB_TOKEN")
+        else
+            echo "GITHUB_TOKEN が設定されていません。匿名で API を呼び出します。"
         fi
 
         # 最新のリリース情報を取得し、jqでダウンロードURLを抽出
-        DOWNLOAD_URL=$(curl $CURL_OPTS https://api.github.com/repos/realm/SourceKitten/releases/latest | jq -r '.assets[] | select(.name == "sourcekitten-linux-x86_64.zip") | .browser_download_url')
+        JSON_RESPONSE=$(curl "${CURL_OPTS[@]}" https://api.github.com/repos/realm/SourceKitten/releases/latest)
+        DOWNLOAD_URL=$(echo "$JSON_RESPONSE" | jq -r '.assets[] | select(.name == "sourcekitten-linux-x86_64.zip") | .browser_download_url')
 
         if [ -z "$DOWNLOAD_URL" ] || [ "$DOWNLOAD_URL" == "null" ]; then
-            echo "SourceKitten のダウンロードURL取得に失敗しました。レート制限に達している可能性があります。"
+            echo "SourceKitten のダウンロードURL取得に失敗しました。"
+            echo "API 応答の先頭部分:"
+            echo "$JSON_RESPONSE" | head -n 20
             exit 1
         fi
 
