@@ -6,6 +6,9 @@
 OS="$(uname -s)"
 
 case "$OS" in
+    Linux*)
+        echo "Linux環境を検出しました。SourceKittenをインストールします。"
+        
         # 1. Homebrew があれば使用 (ubuntu-latest には標準搭載)
         if command -v brew &> /dev/null; then
             echo "Homebrew を使用してインストールします。"
@@ -21,7 +24,10 @@ case "$OS" in
             # GitHub APIを使用して最新のダウンロードURLを取得 (GITHUB_TOKENがあれば使用)
             CURL_OPTS=("-s")
             if [ -n "$GITHUB_TOKEN" ]; then
+                echo "GITHUB_TOKEN が設定されています。認証を使用して API を呼び出します。"
                 CURL_OPTS+=("-H" "Authorization: token $GITHUB_TOKEN")
+            else
+                echo "GITHUB_TOKEN が設定されていません。匿名で API を呼び出します。"
             fi
 
             # 最新のリリース情報を取得し、jqでダウンロードURLを抽出 (リポジトリ名は jpsim/SourceKitten)

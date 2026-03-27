@@ -26,6 +26,13 @@ vi.mock('child_process', () => ({
   })),
 }));
 
+vi.mock('fs', () => ({
+  default: {
+    existsSync: vi.fn(() => true),
+  },
+  existsSync: vi.fn(() => true),
+}));
+
 vi.mock('fs/promises', () => ({
   readFile: vi.fn(),
 }));
