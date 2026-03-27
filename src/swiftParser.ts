@@ -49,9 +49,20 @@ export class SwiftParser implements IParser {
 
   async parseFile(filePath: string): Promise<CodeChunk[]> {
     try {
-      const { stdout } = await this.exec('sourcekitten', ['structure', '--file', filePath]);
-      logger.info(`Successfully parsed file: ${filePath}`);
+      // ファイルの存在確認
+      if (!fs.existsSync(filePath)) {
+        logger.error(`File not found: ${filePath}`);
+        return [];
+      }
 
+      const { stdout, stderr } = await this.exec('sourcekitten', ['structure', '--file', filePath]);
+      if (!stdout || stdout.trim() === '') {
+        logger.warn(`SourceKitten returned empty output for file: ${filePath}`);
+        if (stderr) logger.warn(`SourceKitten stderr: ${stderr}`);
+        return [];
+      }
+
+      logger.info(`Successfully parsed file: ${filePath}`);
       const sourceKittenOutput = JSON.parse(stdout);
       const fileContentBuffer = await this.readFile(filePath);
 
