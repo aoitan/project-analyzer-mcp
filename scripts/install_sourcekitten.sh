@@ -63,6 +63,13 @@ then
     echo "SourceKittenのインストールが完了しました。"
     echo "Version: $(sourcekitten version)"
     
+    # Linux環境でのライブラリパス設定 (SourceKit用)
+    if [ "$OS" = "Linux" ]; then
+        SWIFT_LIB_PATH=$(dirname $(which swift))/../lib/swift/linux
+        echo "Swift lib path: $SWIFT_LIB_PATH"
+        export LD_LIBRARY_PATH="$SWIFT_LIB_PATH:$LD_LIBRARY_PATH"
+    fi
+
     # 簡単なパース確認 (Linuxでの動作検証用)
     echo "func test() {}" > /tmp/test.swift
     echo "SourceKitten structure test:"
