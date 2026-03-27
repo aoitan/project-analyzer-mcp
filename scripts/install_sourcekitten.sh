@@ -10,46 +10,36 @@ case "$OS" in
         echo "Linux環境を検出しました。SourceKittenをインストールします。"
         
         # 1. Homebrew があれば使用 (ubuntu-latest には標準搭載)
+        # ただし、パスが通っていない場合があるためチェック
+        if [ -f /home/linuxbrew/.linuxbrew/bin/brew ]; then
+            eval "$(/home/linuxbrew/.linuxbrew/bin/brew shellenv)"
+        fi
+
         if command -v brew &> /dev/null; then
             echo "Homebrew を使用してインストールします。"
             HOMEBREW_NO_AUTO_UPDATE=1 brew install sourcekitten
-        # 2. Homebrew がない場合は GitHub Release からバイナリ取得を試みる
         else
-            echo "Homebrew が見つからないため、GitHub Release から取得を試みます。"
-            if ! command -v unzip &> /dev/null || ! command -v jq &> /dev/null; then
-                echo "必要なツール (unzip, jq) をインストールします。"
-                sudo apt-get update && sudo apt-get install -y unzip jq
+            echo "Homebrew が見つからないため、ソースからビルドを開始します..."
+            # ソースビルド
+            if ! command -v git &> /dev/null || ! command -v swift &> /dev/null; then
+                echo "必要なツール (git, swift) が見つかりません。aptでインストールを試みます。"
+                sudo apt-get update && sudo apt-get install -y git
             fi
 
-            # GitHub APIを使用して最新のダウンロードURLを取得 (GITHUB_TOKENがあれば使用)
-            CURL_OPTS=("-s")
-            if [ -n "$GITHUB_TOKEN" ]; then
-                echo "GITHUB_TOKEN が設定されています。認証を使用して API を呼び出します。"
-                CURL_OPTS+=("-H" "Authorization: token $GITHUB_TOKEN")
-            else
-                echo "GITHUB_TOKEN が設定されていません。匿名で API を呼び出します。"
-            fi
-
-            # 最新のリリース情報を取得し、jqでダウンロードURLを抽出 (リポジトリ名は jpsim/SourceKitten)
-            JSON_RESPONSE=$(curl "${CURL_OPTS[@]}" https://api.github.com/repos/jpsim/SourceKitten/releases/latest)
-            DOWNLOAD_URL=$(echo "$JSON_RESPONSE" | jq -r '.assets[] | select(.name | contains("linux")) | .browser_download_url' | head -n 1)
-
-            if [ -z "$DOWNLOAD_URL" ] || [ "$DOWNLOAD_URL" == "null" ]; then
-                echo "SourceKitten の Linux 向けバイナリが GitHub Release に見つかりませんでした。"
-                echo "ソースからビルドを開始します..."
-                git clone --depth 1 https://github.com/jpsim/SourceKitten.git /tmp/SourceKitten
-                cd /tmp/SourceKitten
-                make install
-                cd -
-            else
-                echo "バイナリをダウンロードします: $DOWNLOAD_URL"
-                curl -L -o sourcekitten.zip "$DOWNLOAD_URL"
-                mkdir -p sourcekitten_dist
-                unzip -o sourcekitten.zip -d sourcekitten_dist
-                sudo cp sourcekitten_dist/sourcekitten /usr/local/bin/
+            rm -rf /tmp/SourceKitten
+            git clone --depth 1 https://github.com/jpsim/SourceKitten.git /tmp/SourceKitten
+            cd /tmp/SourceKitten
+            swift build --configuration release
+            # ビルド済みバイナリをコピー (sudoを使用)
+            SOURCEKITTEN_BIN=$(swift build --configuration release --show-bin-path)/sourcekitten
+            if [ -f "$SOURCEKITTEN_BIN" ]; then
+                sudo cp "$SOURCEKITTEN_BIN" /usr/local/bin/
                 sudo chmod +x /usr/local/bin/sourcekitten
-                rm -rf sourcekitten.zip sourcekitten_dist
+            else
+                echo "ビルドに失敗しました。バイナリが見つかりません: $SOURCEKITTEN_BIN"
+                exit 1
             fi
+            cd -
         fi
         ;;
     Darwin*)
