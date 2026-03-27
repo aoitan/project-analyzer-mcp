@@ -78,9 +78,5 @@ jobs:
         run: ./scripts/install_sourcekitten.sh
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      - name: Set LD_LIBRARY_PATH for SourceKitten
-        run: |
-          SWIFT_LIB_PATH=$(dirname $(which swift))/../lib/swift/linux
-          echo "LD_LIBRARY_PATH=$SWIFT_LIB_PATH:$LD_LIBRARY_PATH" >> $GITHUB_ENV
       - name: Run full integration tests
         run: npm run test:integration

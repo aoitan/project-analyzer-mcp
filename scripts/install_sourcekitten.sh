@@ -10,7 +10,6 @@ case "$OS" in
         echo "Linux環境を検出しました。SourceKittenをインストールします。"
         
         # 1. Homebrew があれば使用 (ubuntu-latest には標準搭載)
-        # ただし、パスが通っていない場合があるためチェック
         if [ -f /home/linuxbrew/.linuxbrew/bin/brew ]; then
             eval "$(/home/linuxbrew/.linuxbrew/bin/brew shellenv)"
         fi
@@ -20,9 +19,8 @@ case "$OS" in
             HOMEBREW_NO_AUTO_UPDATE=1 brew install sourcekitten
         else
             echo "Homebrew が見つからないため、ソースからビルドを開始します..."
-            # ソースビルド
             if ! command -v git &> /dev/null || ! command -v swift &> /dev/null; then
-                echo "必要なツール (git, swift) が見つかりません。aptでインストールを試みます。"
+                echo "必要なツール (git, swift) が見つかりません。"
                 sudo apt-get update && sudo apt-get install -y git
             fi
 
@@ -30,24 +28,36 @@ case "$OS" in
             git clone --depth 1 https://github.com/jpsim/SourceKitten.git /tmp/SourceKitten
             cd /tmp/SourceKitten
             swift build --configuration release
-            # ビルド済みバイナリをコピー (sudoを使用)
             SOURCEKITTEN_BIN=$(swift build --configuration release --show-bin-path)/sourcekitten
             if [ -f "$SOURCEKITTEN_BIN" ]; then
                 sudo cp "$SOURCEKITTEN_BIN" /usr/local/bin/
                 sudo chmod +x /usr/local/bin/sourcekitten
             else
-                echo "ビルドに失敗しました。バイナリが見つかりません: $SOURCEKITTEN_BIN"
+                echo "ビルドに失敗しました。"
                 exit 1
             fi
             cd -
         fi
+
+        # 依存ライブラリの確認と設定
+        echo "SourceKit 関連ライブラリを検索中..."
+        # Swiftのインストールパスから libsourcekitdInProc.so を探す
+        LIB_PATH=$(find $(dirname $(which swift))/../lib -name "libsourcekitdInProc.so" | head -n 1)
+        if [ -n "$LIB_PATH" ]; then
+            SWIFT_LIB_DIR=$(dirname "$LIB_PATH")
+            echo "Found SourceKit lib at: $SWIFT_LIB_DIR"
+            export LD_LIBRARY_PATH="$SWIFT_LIB_DIR:$LD_LIBRARY_PATH"
+            # GITHUB_ENV に書き込む (CI環境用)
+            if [ -n "$GITHUB_ENV" ]; then
+                echo "LD_LIBRARY_PATH=$SWIFT_LIB_DIR:$LD_LIBRARY_PATH" >> $GITHUB_ENV
+            fi
+        else
+            echo "Warning: libsourcekitdInProc.so not found."
+        fi
         ;;
     Darwin*)
         echo "macOS環境を検出しました。Homebrewを使用してSourceKittenをインストールします。"
-        # Homebrewのインストール（もしインストールされていなければ）
-        if ! command -v brew &> /dev/null
-        then
-            echo "Homebrewがインストールされていません。インストールします。"
+        if ! command -v brew &> /dev/null; then
             /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
         fi
         brew install sourcekitten
@@ -58,21 +68,13 @@ case "$OS" in
         ;;
 esac
 
-if command -v sourcekitten &> /dev/null
-then
+if command -v sourcekitten &> /dev/null; then
     echo "SourceKittenのインストールが完了しました。"
     echo "Version: $(sourcekitten version)"
     
-    # Linux環境でのライブラリパス設定 (SourceKit用)
-    if [ "$OS" = "Linux" ]; then
-        SWIFT_LIB_PATH=$(dirname $(which swift))/../lib/swift/linux
-        echo "Swift lib path: $SWIFT_LIB_PATH"
-        export LD_LIBRARY_PATH="$SWIFT_LIB_PATH:$LD_LIBRARY_PATH"
-    fi
-
-    # 簡単なパース確認 (Linuxでの動作検証用)
+    # 簡単なパース確認
     echo "func test() {}" > /tmp/test.swift
-    echo "SourceKitten structure test:"
+    echo "SourceKitten structure test (with LD_LIBRARY_PATH=$LD_LIBRARY_PATH):"
     sourcekitten structure --file /tmp/test.swift
 else
     echo "SourceKittenのインストールに失敗しました。"
