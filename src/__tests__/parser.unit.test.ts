@@ -1,11 +1,20 @@
 import { SwiftParser, CodeChunk } from '../swiftParser.js';
-import { exec } from 'child_process';
+import { exec, execSync } from 'child_process';
 import * as fs from 'fs/promises';
 import { vi } from 'vitest';
 
 // Mock child_process.exec and fs.readFile
 vi.mock('child_process', () => ({
   exec: vi.fn(), // exec はモックのままにしておく
+  execSync: vi.fn((command: string) => {
+    if (command === 'command -v sourcekitten') {
+      return '/usr/local/bin/sourcekitten\n';
+    }
+    if (command === 'command -v swift') {
+      return '/usr/bin/swift\n';
+    }
+    return '';
+  }),
   spawn: vi.fn(() => ({
     // spawn のモック実装
     stdout: {
@@ -38,6 +47,7 @@ vi.mock('fs/promises', () => ({
 }));
 
 const mockExec = vi.mocked(exec); // exec のモックはそのまま
+const mockExecSync = vi.mocked(execSync);
 const mockReadFile = vi.mocked(fs.readFile);
 
 describe('SwiftParser (Unit Tests)', () => {
@@ -45,12 +55,24 @@ describe('SwiftParser (Unit Tests)', () => {
 
   beforeEach(async () => {
     console.log('[Test] beforeEach: Start');
+    mockExecSync.mockImplementation((command: string) => {
+      if (command === 'command -v sourcekitten') {
+        return '/usr/local/bin/sourcekitten\n' as any;
+      }
+      if (command === 'command -v swift') {
+        return '/usr/bin/swift\n' as any;
+      }
+      return '' as any;
+    });
     parser = new SwiftParser(
       vi.fn((command, args, options) => {
         // ここで spawn の引数形式を模倣
-        if (command === 'sourcekitten' && args[0] === 'structure') {
+        if ((command === 'sourcekitten' || command === '/usr/local/bin/sourcekitten') && args[0] === 'structure') {
           return Promise.resolve({ stdout: JSON.stringify(mockSourceKittenOutput), stderr: '' });
-        } else if (command === 'sourcekitten' && args[0] === '--file') {
+        } else if (
+          (command === 'sourcekitten' || command === '/usr/local/bin/sourcekitten') &&
+          args[0] === '--file'
+        ) {
           // getFunctionContent のテスト用
           return Promise.resolve({ stdout: JSON.stringify(mockSourceKittenOutput), stderr: '' });
         }
@@ -913,6 +935,40 @@ func dummyFunction2() {
       ['structure', '--file', filePath],
       expect.anything(),
     );
+  });
+
+  it('getFunctionContent should use resolved SourceKitten path', async () => {
+    const execMock = vi.fn().mockResolvedValue({
+      stdout: JSON.stringify(mockSourceKittenOutput),
+      stderr: '',
+    });
+    parser = new SwiftParser(execMock, mockReadFile);
+
+    const filePath = '/path/to/test.swift';
+    const content = await parser.getFunctionContent(filePath, {
+      name: 'dummyFunction1(param:)',
+      type: 'source.lang.swift.decl.function.free',
+      signature: 'func dummyFunction1(param:) -> Int',
+      id: 'func dummyFunction1(param:) -> Int',
+      content: '',
+      filePath,
+      startLine: 1,
+      endLine: 3,
+      offset: 0,
+      length: 58,
+      calls: [],
+    });
+
+    expect(execMock).toHaveBeenCalledWith(
+      '/usr/local/bin/sourcekitten',
+      ['structure', '--file', filePath],
+      expect.objectContaining({
+        env: expect.objectContaining({
+          PATH: expect.any(String),
+        }),
+      }),
+    );
+    expect(content).toBe(expectedDummyFunction1Content.trim());
   });
 
   // getFunctionContent のテストは parseFile のテストでカバーされるため削除

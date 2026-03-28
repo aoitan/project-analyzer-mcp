@@ -53,6 +53,59 @@ export class SwiftParser implements IParser {
     this.readFile = readFile;
   }
 
+  private resolveSourceKittenCommand(): { command: string; env: NodeJS.ProcessEnv } {
+    const env = { ...process.env };
+    let sourceKittenPath = 'sourcekitten';
+
+    try {
+      const resolvedPath = execSync('command -v sourcekitten', { encoding: 'utf8', env }).trim();
+      if (resolvedPath) {
+        sourceKittenPath = resolvedPath;
+      }
+    } catch (error) {
+      logger.warn('sourcekitten not found in PATH, trying common locations...');
+      const commonPaths = [
+        '/usr/local/bin/sourcekitten',
+        '/opt/homebrew/bin/sourcekitten',
+        '/home/linuxbrew/.linuxbrew/bin/sourcekitten',
+      ];
+      for (const candidate of commonPaths) {
+        if (fs.existsSync(candidate)) {
+          sourceKittenPath = candidate;
+          break;
+        }
+      }
+    }
+
+    if (process.platform === 'linux') {
+      try {
+        const swiftPath = execSync('command -v swift', { encoding: 'utf8', env }).trim();
+        if (swiftPath) {
+          const swiftBinDir = path.dirname(swiftPath);
+          const swiftLibPath = path.join(swiftBinDir, '../lib/swift/linux');
+          if (fs.existsSync(path.join(swiftLibPath, 'libsourcekitdInProc.so'))) {
+            env.LD_LIBRARY_PATH = `${swiftLibPath}:${env.LD_LIBRARY_PATH || ''}`;
+            if (env.PATH) {
+              if (!env.PATH.includes(swiftBinDir)) {
+                env.PATH = `${swiftBinDir}:${env.PATH}`;
+              }
+            } else {
+              env.PATH = swiftBinDir;
+            }
+          }
+        }
+      } catch (error) {
+        logger.warn(`Failed to resolve Swift library path: ${error}`);
+      }
+    }
+
+    logger.info(
+      `SourceKitten execution info: path=${sourceKittenPath}, PATH=${env.PATH}, LD_LIBRARY_PATH=${env.LD_LIBRARY_PATH}`,
+    );
+
+    return { command: sourceKittenPath, env };
+  }
+
   async parseFile(filePath: string): Promise<CodeChunk[]> {
     try {
       // ファイルの存在確認
@@ -61,51 +114,10 @@ export class SwiftParser implements IParser {
         return [];
       }
 
-      // Linux環境でのライブラリパス解決
-      const env = { ...process.env };
-      let sourceKittenPath = 'sourcekitten';
-
-      if (process.platform === 'linux') {
-        try {
-          // SourceKittenの場所を特定
-          sourceKittenPath = execSync('which sourcekitten', { encoding: 'utf8' }).trim();
-        } catch (e) {
-          logger.warn('sourcekitten not found in PATH, trying common locations...');
-          const commonPaths = ['/usr/local/bin/sourcekitten', '/home/linuxbrew/.linuxbrew/bin/sourcekitten'];
-          for (const p of commonPaths) {
-            if (fs.existsSync(p)) {
-              sourceKittenPath = p;
-              break;
-            }
-          }
-        }
-
-        try {
-          const swiftPath = execSync('which swift', { encoding: 'utf8' }).trim();
-          if (swiftPath) {
-            const swiftBinDir = path.dirname(swiftPath);
-            const swiftLibPath = path.join(swiftBinDir, '../lib/swift/linux');
-            if (fs.existsSync(path.join(swiftLibPath, 'libsourcekitdInProc.so'))) {
-              env.LD_LIBRARY_PATH = `${swiftLibPath}:${env.LD_LIBRARY_PATH || ''}`;
-              // PATHを壊さないように慎重に結合
-              if (env.PATH) {
-                if (!env.PATH.includes(swiftBinDir)) {
-                  env.PATH = `${swiftBinDir}:${env.PATH}`;
-                }
-              } else {
-                env.PATH = swiftBinDir;
-              }
-            }
-          }
-        } catch (e) {
-          logger.warn(`Failed to resolve Swift library path: ${e}`);
-        }
-        
-        logger.info(`SourceKitten execution info: path=${sourceKittenPath}, LD_LIBRARY_PATH=${env.LD_LIBRARY_PATH}`);
-      }
+      const { command, env } = this.resolveSourceKittenCommand();
 
       const { stdout, stderr } = await this.exec(
-        sourceKittenPath,
+        command,
         ['structure', '--file', filePath],
         {
           env,
@@ -250,7 +262,8 @@ export class SwiftParser implements IParser {
    */
   async getFunctionContent(filePath: string, targetFunction: CodeChunk): Promise<string | null> {
     try {
-      const { stdout } = await this.exec('sourcekitten', ['structure', '--file', filePath]);
+      const { command, env } = this.resolveSourceKittenCommand();
+      const { stdout } = await this.exec(command, ['structure', '--file', filePath], { env });
       const sourceKittenOutput = JSON.parse(stdout);
       const fileContentBuffer = await this.readFile(filePath);
 
