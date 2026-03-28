@@ -46,7 +46,7 @@ describe('SwiftParser (Unit Tests)', () => {
   beforeEach(async () => {
     console.log('[Test] beforeEach: Start');
     parser = new SwiftParser(
-      vi.fn((command, args) => {
+      vi.fn((command, args, options) => {
         // ここで spawn の引数形式を模倣
         if (command === 'sourcekitten' && args[0] === 'structure') {
           return Promise.resolve({ stdout: JSON.stringify(mockSourceKittenOutput), stderr: '' });
@@ -805,7 +805,7 @@ func dummyFunction2() {
     const filePath = '/path/to/test.swift';
     const chunks = await parser.parseFile(filePath);
 
-    expect(parser['exec']).toHaveBeenCalledWith('sourcekitten', ['structure', '--file', filePath]);
+    expect(parser['exec']).toHaveBeenCalledWith('sourcekitten', ['structure', '--file', filePath], expect.anything());
     expect(chunks).toHaveLength(3);
     expect(chunks[0].id).toBe(`${filePath}:func dummyFunction1(param:) -> Int:0`);
     expect(chunks[0].signature).toBe('func dummyFunction1(param:) -> Int');
@@ -882,7 +882,7 @@ func dummyFunction2() {
     const filePath = '/path/to/error.swift';
     await expect(parser.parseFile(filePath)).resolves.toEqual([]);
 
-    expect(parser['exec']).toHaveBeenCalledWith('sourcekitten', ['structure', '--file', filePath]);
+    expect(parser['exec']).toHaveBeenCalledWith('sourcekitten', ['structure', '--file', filePath], expect.anything());
     console.log('[Test] parseFile error test: End');
   });
 
@@ -900,7 +900,7 @@ func dummyFunction2() {
     const filePath = '/path/to/exec_error.swift';
     await expect(parser.parseFile(filePath)).resolves.toEqual([]);
 
-    expect(parser['exec']).toHaveBeenCalledWith('sourcekitten', ['structure', '--file', filePath]);
+    expect(parser['exec']).toHaveBeenCalledWith('sourcekitten', ['structure', '--file', filePath], expect.anything());
   });
 
   // getFunctionContent のテストは parseFile のテストでカバーされるため削除

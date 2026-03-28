@@ -1,20 +1,22 @@
-import { spawn } from 'child_process';
+import { spawn, execSync } from 'child_process';
 import * as fs from 'fs';
 import * as fsp from 'fs/promises';
+import * as path from 'path';
 import logger from './utils/logger.js';
 import { IParser, CodeChunk } from './interfaces/parser.js';
 
 type ExecFunction = (
   command: string,
   args: string[],
+  options?: { env?: NodeJS.ProcessEnv },
 ) => Promise<{ stdout: string; stderr: string }>;
 type ReadFileFunction = typeof fsp.readFile;
 
-const defaultExec: ExecFunction = (command: string, args: string[]) => {
+const defaultExec: ExecFunction = (command: string, args: string[], options?: { env?: NodeJS.ProcessEnv }) => {
   return new Promise((resolve, reject) => {
     let stdout = '';
     let stderr = '';
-    const child = spawn(command, args);
+    const child = spawn(command, args, options);
 
     child.stdout.on('data', (data) => {
       stdout += data.toString();
@@ -55,7 +57,25 @@ export class SwiftParser implements IParser {
         return [];
       }
 
-      const { stdout, stderr } = await this.exec('sourcekitten', ['structure', '--file', filePath]);
+      // Linux環境でのライブラリパス解決
+      const env = { ...process.env };
+      if (process.platform === 'linux') {
+        try {
+          const swiftPath = execSync('which swift', { encoding: 'utf8' }).trim();
+          if (swiftPath) {
+            const swiftLibPath = path.join(path.dirname(swiftPath), '../lib/swift/linux');
+            if (fs.existsSync(path.join(swiftLibPath, 'libsourcekitdInProc.so'))) {
+              env.LD_LIBRARY_PATH = `${swiftLibPath}:${env.LD_LIBRARY_PATH || ''}`;
+            }
+          }
+        } catch (e) {
+          logger.warn(`Failed to resolve Swift library path: ${e}`);
+        }
+      }
+
+      const { stdout, stderr } = await this.exec('sourcekitten', ['structure', '--file', filePath], {
+        env,
+      });
       if (!stdout || stdout.trim() === '') {
         logger.warn(`SourceKitten returned empty output for file: ${filePath}`);
         if (stderr) logger.warn(`SourceKitten stderr: ${stderr}`);
