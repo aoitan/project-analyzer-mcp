@@ -805,7 +805,11 @@ func dummyFunction2() {
     const filePath = '/path/to/test.swift';
     const chunks = await parser.parseFile(filePath);
 
-    expect(parser['exec']).toHaveBeenCalledWith('sourcekitten', ['structure', '--file', filePath], expect.anything());
+    expect(parser['exec']).toHaveBeenCalledWith(
+      'sourcekitten',
+      ['structure', '--file', filePath],
+      expect.anything(),
+    );
     expect(chunks).toHaveLength(3);
     expect(chunks[0].id).toBe(`${filePath}:func dummyFunction1(param:) -> Int:0`);
     expect(chunks[0].signature).toBe('func dummyFunction1(param:) -> Int');
@@ -882,7 +886,11 @@ func dummyFunction2() {
     const filePath = '/path/to/error.swift';
     await expect(parser.parseFile(filePath)).resolves.toEqual([]);
 
-    expect(parser['exec']).toHaveBeenCalledWith('sourcekitten', ['structure', '--file', filePath], expect.anything());
+    expect(parser['exec']).toHaveBeenCalledWith(
+      'sourcekitten',
+      ['structure', '--file', filePath],
+      expect.anything(),
+    );
     console.log('[Test] parseFile error test: End');
   });
 
@@ -900,7 +908,11 @@ func dummyFunction2() {
     const filePath = '/path/to/exec_error.swift';
     await expect(parser.parseFile(filePath)).resolves.toEqual([]);
 
-    expect(parser['exec']).toHaveBeenCalledWith('sourcekitten', ['structure', '--file', filePath], expect.anything());
+    expect(parser['exec']).toHaveBeenCalledWith(
+      'sourcekitten',
+      ['structure', '--file', filePath],
+      expect.anything(),
+    );
   });
 
   // getFunctionContent のテストは parseFile のテストでカバーされるため削除

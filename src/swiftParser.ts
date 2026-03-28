@@ -12,7 +12,11 @@ type ExecFunction = (
 ) => Promise<{ stdout: string; stderr: string }>;
 type ReadFileFunction = typeof fsp.readFile;
 
-const defaultExec: ExecFunction = (command: string, args: string[], options?: { env?: NodeJS.ProcessEnv }) => {
+const defaultExec: ExecFunction = (
+  command: string,
+  args: string[],
+  options?: { env?: NodeJS.ProcessEnv },
+) => {
   return new Promise((resolve, reject) => {
     let stdout = '';
     let stderr = '';
@@ -63,9 +67,14 @@ export class SwiftParser implements IParser {
         try {
           const swiftPath = execSync('which swift', { encoding: 'utf8' }).trim();
           if (swiftPath) {
-            const swiftLibPath = path.join(path.dirname(swiftPath), '../lib/swift/linux');
+            const swiftBinDir = path.dirname(swiftPath);
+            const swiftLibPath = path.join(swiftBinDir, '../lib/swift/linux');
             if (fs.existsSync(path.join(swiftLibPath, 'libsourcekitdInProc.so'))) {
               env.LD_LIBRARY_PATH = `${swiftLibPath}:${env.LD_LIBRARY_PATH || ''}`;
+              env.PATH = `${swiftBinDir}:${env.PATH || ''}`;
+              logger.info(
+                `SourceKitten env: LD_LIBRARY_PATH=${env.LD_LIBRARY_PATH}, PATH=${env.PATH}`,
+              );
             }
           }
         } catch (e) {
@@ -73,9 +82,13 @@ export class SwiftParser implements IParser {
         }
       }
 
-      const { stdout, stderr } = await this.exec('sourcekitten', ['structure', '--file', filePath], {
-        env,
-      });
+      const { stdout, stderr } = await this.exec(
+        'sourcekitten',
+        ['structure', '--file', filePath],
+        {
+          env,
+        },
+      );
       if (!stdout || stdout.trim() === '') {
         logger.warn(`SourceKitten returned empty output for file: ${filePath}`);
         if (stderr) logger.warn(`SourceKitten stderr: ${stderr}`);

@@ -9,6 +9,9 @@ case "$OS" in
     Linux*)
         echo "Linux環境を検出しました。SourceKittenをインストールします。"
         
+        # 必要なシステムライブラリのインストール (Swift/SourceKit用)
+        sudo apt-get update && sudo apt-get install -y libxml2-dev libncurses5-dev libcurl4-openssl-dev
+
         # 1. Homebrew があれば使用 (ubuntu-latest には標準搭載)
         if [ -f /home/linuxbrew/.linuxbrew/bin/brew ]; then
             eval "$(/home/linuxbrew/.linuxbrew/bin/brew shellenv)"
@@ -41,25 +44,19 @@ case "$OS" in
 
         # 依存ライブラリの確認と設定
         echo "SourceKit 関連ライブラリを検索中..."
-        # 検索範囲を広げる
-        LIB_PATH=$(find $(dirname $(which swift))/../lib -name "libsourcekitdInProc.so" | head -n 1)
-        if [ -z "$LIB_PATH" ]; then
-            LIB_PATH=$(find /usr/lib /usr/local/lib /opt/hostedtoolcache -name "libsourcekitdInProc.so" 2>/dev/null | head -n 1)
-        fi
-
-        if [ -n "$LIB_PATH" ]; then
-            SWIFT_LIB_DIR=$(dirname "$LIB_PATH")
-            echo "Found SourceKit lib at: $SWIFT_LIB_DIR"
-            export LD_LIBRARY_PATH="$SWIFT_LIB_DIR:$LD_LIBRARY_PATH"
-            # GITHUB_ENV に書き込む (CI環境用)
+        SWIFT_BIN_PATH=$(which swift)
+        SWIFT_LIB_DIR=$(dirname "$SWIFT_BIN_PATH")/../lib/swift/linux
+        
+        if [ -d "$SWIFT_LIB_DIR" ]; then
+            echo "Found Swift lib dir at: $SWIFT_LIB_DIR"
+            # GITHUB_ENV と GITHUB_PATH に書き込む (CI環境用)
             if [ -n "$GITHUB_ENV" ]; then
                 echo "LD_LIBRARY_PATH=$SWIFT_LIB_DIR:$LD_LIBRARY_PATH" >> $GITHUB_ENV
+                echo "$(dirname "$SWIFT_BIN_PATH")" >> $GITHUB_PATH
             fi
+            export LD_LIBRARY_PATH="$SWIFT_LIB_DIR:$LD_LIBRARY_PATH"
         else
-            echo "Warning: libsourcekitdInProc.so not found."
-            # デバッグ用に全ライブラリパスを出す
-            echo "Swift directory structure:"
-            ls -R $(dirname $(which swift))/../lib | grep ".so" | head -n 20
+            echo "Warning: Swift lib dir not found at $SWIFT_LIB_DIR"
         fi
         ;;
     Darwin*)
@@ -84,9 +81,6 @@ if command -v sourcekitten &> /dev/null; then
     echo "func test() {}" > "$TEST_SWIFT"
     echo "--- SourceKitten structure test (file path) ---"
     sourcekitten structure --file "$TEST_SWIFT"
-    
-    echo "--- SourceKitten structure test (stdin) ---"
-    echo "func test() {}" | sourcekitten structure --text "func test() {}"
 else
     echo "SourceKittenのインストールに失敗しました。"
     exit 1
