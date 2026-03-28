@@ -116,13 +116,9 @@ export class SwiftParser implements IParser {
 
       const { command, env } = this.resolveSourceKittenCommand();
 
-      const { stdout, stderr } = await this.exec(
-        command,
-        ['structure', '--file', filePath],
-        {
-          env,
-        },
-      );
+      const { stdout, stderr } = await this.exec(command, ['structure', '--file', filePath], {
+        env,
+      });
       if (!stdout || stdout.trim() === '') {
         logger.warn(`SourceKitten returned empty output for file: ${filePath}`);
         if (stderr) logger.warn(`SourceKitten stderr: ${stderr}`);

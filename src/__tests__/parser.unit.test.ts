@@ -67,7 +67,10 @@ describe('SwiftParser (Unit Tests)', () => {
     parser = new SwiftParser(
       vi.fn((command, args, options) => {
         // ここで spawn の引数形式を模倣
-        if ((command === 'sourcekitten' || command === '/usr/local/bin/sourcekitten') && args[0] === 'structure') {
+        if (
+          (command === 'sourcekitten' || command === '/usr/local/bin/sourcekitten') &&
+          args[0] === 'structure'
+        ) {
           return Promise.resolve({ stdout: JSON.stringify(mockSourceKittenOutput), stderr: '' });
         } else if (
           (command === 'sourcekitten' || command === '/usr/local/bin/sourcekitten') &&
