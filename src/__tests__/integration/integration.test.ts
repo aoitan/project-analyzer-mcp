@@ -2,7 +2,7 @@
 
 import { spawn } from 'child_process';
 import { fileURLToPath } from 'url';
-import path from 'path';
+import * as path from 'path';
 import { expect, describe, it, beforeEach, afterEach, beforeAll, afterAll } from 'vitest';
 import * as fs from 'fs/promises';
 
@@ -30,8 +30,10 @@ async function startServer(): Promise<{
   responseMap: Map<string, string>; // Mapに変更
   stderrBuffer: string;
 }> {
+  console.log(`Starting server with LD_LIBRARY_PATH: ${process.env.LD_LIBRARY_PATH}`);
   const serverProcess = spawn('node', [SERVER_PATH, '--cache-dir', CHUNKS_DIR], {
     stdio: ['pipe', 'pipe', 'pipe'], // stdin, stdout, stderr をパイプで接続
+    env: { ...process.env }, // 明示的に環境変数を引き継ぐ
   });
 
   const responseMap = new Map<string, string>(); // Mapを初期化

@@ -1,20 +1,26 @@
-import { spawn } from 'child_process';
+import { spawn, execSync } from 'child_process';
 import * as fs from 'fs';
 import * as fsp from 'fs/promises';
+import * as path from 'path';
 import logger from './utils/logger.js';
 import { IParser, CodeChunk } from './interfaces/parser.js';
 
 type ExecFunction = (
   command: string,
   args: string[],
+  options?: { env?: NodeJS.ProcessEnv },
 ) => Promise<{ stdout: string; stderr: string }>;
 type ReadFileFunction = typeof fsp.readFile;
 
-const defaultExec: ExecFunction = (command: string, args: string[]) => {
+const defaultExec: ExecFunction = (
+  command: string,
+  args: string[],
+  options?: { env?: NodeJS.ProcessEnv },
+) => {
   return new Promise((resolve, reject) => {
     let stdout = '';
     let stderr = '';
-    const child = spawn(command, args);
+    const child = spawn(command, args, options);
 
     child.stdout.on('data', (data) => {
       stdout += data.toString();
@@ -47,11 +53,79 @@ export class SwiftParser implements IParser {
     this.readFile = readFile;
   }
 
+  private resolveSourceKittenCommand(): { command: string; env: NodeJS.ProcessEnv } {
+    const env = { ...process.env };
+    let sourceKittenPath = 'sourcekitten';
+
+    try {
+      const resolvedPath = execSync('command -v sourcekitten', { encoding: 'utf8', env }).trim();
+      if (resolvedPath) {
+        sourceKittenPath = resolvedPath;
+      }
+    } catch (error) {
+      logger.warn('sourcekitten not found in PATH, trying common locations...');
+      const commonPaths = [
+        '/usr/local/bin/sourcekitten',
+        '/opt/homebrew/bin/sourcekitten',
+        '/home/linuxbrew/.linuxbrew/bin/sourcekitten',
+      ];
+      for (const candidate of commonPaths) {
+        if (fs.existsSync(candidate)) {
+          sourceKittenPath = candidate;
+          break;
+        }
+      }
+    }
+
+    if (process.platform === 'linux') {
+      try {
+        const swiftPath = execSync('command -v swift', { encoding: 'utf8', env }).trim();
+        if (swiftPath) {
+          const swiftBinDir = path.dirname(swiftPath);
+          const swiftLibPath = path.join(swiftBinDir, '../lib/swift/linux');
+          if (fs.existsSync(path.join(swiftLibPath, 'libsourcekitdInProc.so'))) {
+            env.LD_LIBRARY_PATH = `${swiftLibPath}:${env.LD_LIBRARY_PATH || ''}`;
+            if (env.PATH) {
+              if (!env.PATH.includes(swiftBinDir)) {
+                env.PATH = `${swiftBinDir}:${env.PATH}`;
+              }
+            } else {
+              env.PATH = swiftBinDir;
+            }
+          }
+        }
+      } catch (error) {
+        logger.warn(`Failed to resolve Swift library path: ${error}`);
+      }
+    }
+
+    logger.info(
+      `SourceKitten execution info: path=${sourceKittenPath}, PATH=${env.PATH}, LD_LIBRARY_PATH=${env.LD_LIBRARY_PATH}`,
+    );
+
+    return { command: sourceKittenPath, env };
+  }
+
   async parseFile(filePath: string): Promise<CodeChunk[]> {
     try {
-      const { stdout } = await this.exec('sourcekitten', ['structure', '--file', filePath]);
-      logger.info(`Successfully parsed file: ${filePath}`);
+      // ファイルの存在確認
+      if (!fs.existsSync(filePath)) {
+        logger.error(`File not found: ${filePath}`);
+        return [];
+      }
 
+      const { command, env } = this.resolveSourceKittenCommand();
+
+      const { stdout, stderr } = await this.exec(command, ['structure', '--file', filePath], {
+        env,
+      });
+      if (!stdout || stdout.trim() === '') {
+        logger.warn(`SourceKitten returned empty output for file: ${filePath}`);
+        if (stderr) logger.warn(`SourceKitten stderr: ${stderr}`);
+        return [];
+      }
+
+      logger.info(`Successfully parsed file: ${filePath}`);
       const sourceKittenOutput = JSON.parse(stdout);
       const fileContentBuffer = await this.readFile(filePath);
 
@@ -184,7 +258,8 @@ export class SwiftParser implements IParser {
    */
   async getFunctionContent(filePath: string, targetFunction: CodeChunk): Promise<string | null> {
     try {
-      const { stdout } = await this.exec('sourcekitten', ['structure', '--file', filePath]);
+      const { command, env } = this.resolveSourceKittenCommand();
+      const { stdout } = await this.exec(command, ['structure', '--file', filePath], { env });
       const sourceKittenOutput = JSON.parse(stdout);
       const fileContentBuffer = await this.readFile(filePath);
 
