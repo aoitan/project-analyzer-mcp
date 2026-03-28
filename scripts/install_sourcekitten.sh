@@ -41,8 +41,12 @@ case "$OS" in
 
         # 依存ライブラリの確認と設定
         echo "SourceKit 関連ライブラリを検索中..."
-        # Swiftのインストールパスから libsourcekitdInProc.so を探す
+        # 検索範囲を広げる
         LIB_PATH=$(find $(dirname $(which swift))/../lib -name "libsourcekitdInProc.so" | head -n 1)
+        if [ -z "$LIB_PATH" ]; then
+            LIB_PATH=$(find /usr/lib /usr/local/lib /opt/hostedtoolcache -name "libsourcekitdInProc.so" 2>/dev/null | head -n 1)
+        fi
+
         if [ -n "$LIB_PATH" ]; then
             SWIFT_LIB_DIR=$(dirname "$LIB_PATH")
             echo "Found SourceKit lib at: $SWIFT_LIB_DIR"
@@ -53,6 +57,9 @@ case "$OS" in
             fi
         else
             echo "Warning: libsourcekitdInProc.so not found."
+            # デバッグ用に全ライブラリパスを出す
+            echo "Swift directory structure:"
+            ls -R $(dirname $(which swift))/../lib | grep ".so" | head -n 20
         fi
         ;;
     Darwin*)
@@ -73,9 +80,13 @@ if command -v sourcekitten &> /dev/null; then
     echo "Version: $(sourcekitten version)"
     
     # 簡単なパース確認
-    echo "func test() {}" > /tmp/test.swift
-    echo "SourceKitten structure test (with LD_LIBRARY_PATH=$LD_LIBRARY_PATH):"
-    sourcekitten structure --file /tmp/test.swift
+    TEST_SWIFT="/tmp/test.swift"
+    echo "func test() {}" > "$TEST_SWIFT"
+    echo "--- SourceKitten structure test (file path) ---"
+    sourcekitten structure --file "$TEST_SWIFT"
+    
+    echo "--- SourceKitten structure test (stdin) ---"
+    echo "func test() {}" | sourcekitten structure --text "func test() {}"
 else
     echo "SourceKittenのインストールに失敗しました。"
     exit 1
