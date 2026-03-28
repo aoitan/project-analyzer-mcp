@@ -806,7 +806,7 @@ func dummyFunction2() {
     const chunks = await parser.parseFile(filePath);
 
     expect(parser['exec']).toHaveBeenCalledWith(
-      'sourcekitten',
+      expect.any(String),
       ['structure', '--file', filePath],
       expect.anything(),
     );
@@ -887,7 +887,7 @@ func dummyFunction2() {
     await expect(parser.parseFile(filePath)).resolves.toEqual([]);
 
     expect(parser['exec']).toHaveBeenCalledWith(
-      'sourcekitten',
+      expect.any(String),
       ['structure', '--file', filePath],
       expect.anything(),
     );
@@ -909,7 +909,7 @@ func dummyFunction2() {
     await expect(parser.parseFile(filePath)).resolves.toEqual([]);
 
     expect(parser['exec']).toHaveBeenCalledWith(
-      'sourcekitten',
+      expect.any(String),
       ['structure', '--file', filePath],
       expect.anything(),
     );

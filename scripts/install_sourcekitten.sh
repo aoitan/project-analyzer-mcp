@@ -75,6 +75,7 @@ esac
 if command -v sourcekitten &> /dev/null; then
     echo "SourceKittenのインストールが完了しました。"
     echo "Version: $(sourcekitten version)"
+    echo "Location: $(which sourcekitten)"
     
     # 簡単なパース確認
     TEST_SWIFT="/tmp/test.swift"

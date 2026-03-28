@@ -63,7 +63,23 @@ export class SwiftParser implements IParser {
 
       // Linux環境でのライブラリパス解決
       const env = { ...process.env };
+      let sourceKittenPath = 'sourcekitten';
+
       if (process.platform === 'linux') {
+        try {
+          // SourceKittenの場所を特定
+          sourceKittenPath = execSync('which sourcekitten', { encoding: 'utf8' }).trim();
+        } catch (e) {
+          logger.warn('sourcekitten not found in PATH, trying common locations...');
+          const commonPaths = ['/usr/local/bin/sourcekitten', '/home/linuxbrew/.linuxbrew/bin/sourcekitten'];
+          for (const p of commonPaths) {
+            if (fs.existsSync(p)) {
+              sourceKittenPath = p;
+              break;
+            }
+          }
+        }
+
         try {
           const swiftPath = execSync('which swift', { encoding: 'utf8' }).trim();
           if (swiftPath) {
@@ -71,19 +87,25 @@ export class SwiftParser implements IParser {
             const swiftLibPath = path.join(swiftBinDir, '../lib/swift/linux');
             if (fs.existsSync(path.join(swiftLibPath, 'libsourcekitdInProc.so'))) {
               env.LD_LIBRARY_PATH = `${swiftLibPath}:${env.LD_LIBRARY_PATH || ''}`;
-              env.PATH = `${swiftBinDir}:${env.PATH || ''}`;
-              logger.info(
-                `SourceKitten env: LD_LIBRARY_PATH=${env.LD_LIBRARY_PATH}, PATH=${env.PATH}`,
-              );
+              // PATHを壊さないように慎重に結合
+              if (env.PATH) {
+                if (!env.PATH.includes(swiftBinDir)) {
+                  env.PATH = `${swiftBinDir}:${env.PATH}`;
+                }
+              } else {
+                env.PATH = swiftBinDir;
+              }
             }
           }
         } catch (e) {
           logger.warn(`Failed to resolve Swift library path: ${e}`);
         }
+        
+        logger.info(`SourceKitten execution info: path=${sourceKittenPath}, LD_LIBRARY_PATH=${env.LD_LIBRARY_PATH}`);
       }
 
       const { stdout, stderr } = await this.exec(
-        'sourcekitten',
+        sourceKittenPath,
         ['structure', '--file', filePath],
         {
           env,
